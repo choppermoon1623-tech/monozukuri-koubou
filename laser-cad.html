@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>レーザーCAD — じゆう設計スタジオ</title>
+<style>
+  :root{
+    --ink:#1b2733;
+    --bg:#eef2f5;
+    --panel:#ffffff;
+    --line:#d7dee5;
+    --accent:#0fa3a3;
+    --accent-dk:#0b8181;
+    --orange:#ff6b35;
+    --sub:#5d6b78;
+    --sel:#2f7df6;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;
+    background:var(--bg); color:var(--ink);
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  header{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 18px; background:var(--ink); color:#fff; flex:0 0 auto;
+  }
+  header .logo{
+    width:30px;height:30px;border-radius:8px;background:var(--accent);
+    display:grid;place-items:center;font-weight:900;font-size:11px;color:#fff;letter-spacing:.02em;
+  }
+  header h1{font-size:16px; font-weight:800; letter-spacing:.08em;}
+  header .tag{font-size:11px; color:#aebbc7; letter-spacing:.05em;}
+  header a.sis{
+    margin-left:auto; color:#ffb08a; font-size:12px; font-weight:700; text-decoration:none;
+    border:1px solid #4a5a68; border-radius:999px; padding:5px 12px;
+  }
+  header a.sis:hover{background:#2a3947;}
+  main{flex:1 1 auto; display:flex; min-height:0;}
+  #panel{
+    width:340px; flex:0 0 auto; background:var(--panel);
+    border-right:1px solid var(--line);
+    display:flex; flex-direction:column; min-height:0;
+  }
+  #controls{flex:1; overflow-y:auto; padding:14px 16px;}
+  .sec-title{
+    font-size:11px; font-weight:800; letter-spacing:.14em; color:var(--sub);
+    margin:14px 0 7px;
+  }
+  .sec-title:first-child{margin-top:0;}
+  .grp{margin-bottom:12px;}
+  .grp label{display:flex; justify-content:space-between; font-size:12.5px; font-weight:700; margin-bottom:5px;}
+  .grp label .val{color:var(--accent-dk); font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%; accent-color:var(--accent); height:26px; cursor:pointer;}
+  input[type=number], input[type=text]{
+    width:100%; padding:8px 10px; font-size:15px; font-weight:700;
+    border:2px solid var(--line); border-radius:10px; font-family:inherit;
+  }
+  input[type=number]:focus, input[type=text]:focus{outline:none; border-color:var(--accent);}
+  .hint{font-size:11px; color:var(--sub); margin-top:4px; line-height:1.6;}
+  .seg{display:flex; gap:6px;}
+  .seg button{
+    flex:1; padding:8px 0; font-size:12px; font-weight:700; font-family:inherit;
+    border:2px solid var(--line); border-radius:9px; background:#fff; color:var(--sub); cursor:pointer;
+  }
+  .seg button.on{border-color:var(--accent); color:var(--ink); background:#f0fafa;}
+  /* 図形ボタン */
+  #shapeBtns{display:grid; grid-template-columns:repeat(4,1fr); gap:6px;}
+  #shapeBtns button{
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:8px 2px 6px; font-size:10.5px; font-weight:700; font-family:inherit;
+    border:2px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); cursor:pointer;
+  }
+  #shapeBtns button:hover{border-color:var(--accent); background:#f0fafa;}
+  #shapeBtns svg{width:26px; height:26px;}
+  #stampBtns{display:grid; grid-template-columns:repeat(6,1fr); gap:5px;}
+  #stampBtns button{
+    aspect-ratio:1; display:grid; place-items:center; padding:4px;
+    border:2px solid var(--line); border-radius:10px; background:#fff; cursor:pointer;
+  }
+  #stampBtns button:hover{border-color:var(--accent); background:#f0fafa;}
+  #stampBtns svg{width:100%; height:100%;}
+  /* プロパティ・操作ボタン */
+  .btngrid{display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+  .btngrid.c4{grid-template-columns:repeat(4,1fr);}
+  .btn2{
+    padding:8px 0; font-size:12px; font-weight:700; font-family:inherit;
+    border:2px solid var(--line); border-radius:9px; background:#fff; color:var(--ink); cursor:pointer;
+  }
+  .btn2:hover:not(:disabled){border-color:var(--accent); background:#f0fafa;}
+  .btn2:disabled{opacity:.35; cursor:default;}
+  .btn2.warn:hover:not(:disabled){border-color:#e05555; background:#fdf0f0;}
+  .btnBig{
+    width:100%; padding:10px 0; font-size:13.5px; font-weight:800; font-family:inherit;
+    border:none; border-radius:10px; cursor:pointer; color:#fff;
+    background:var(--accent); box-shadow:0 3px 0 var(--accent-dk); margin-bottom:8px;
+  }
+  .btnBig:disabled{background:#c3ced6; box-shadow:0 3px 0 #a7b4be; cursor:default;}
+  .btnBig:active:not(:disabled){transform:translateY(2px); box-shadow:0 1px 0 var(--accent-dk);}
+  .btnBig.orange{background:var(--orange); box-shadow:0 3px 0 #d14e1d;}
+  .btnBig.orange:active:not(:disabled){box-shadow:0 1px 0 #d14e1d;}
+  .dims2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .dims2 .grp{margin-bottom:8px;}
+  #propBox .modeSeg button.cutOn{border-color:#e11; color:#c0392b; background:#fdf2f0;}
+  #propBox .modeSeg button.engOn{border-color:#333; color:#111; background:#f1f1f1;}
+  #selHint{font-size:12px; color:var(--sub); line-height:1.7; background:#f7fafb; border-radius:10px; padding:10px 12px;}
+  /* ステージ */
+  #stage{flex:1; position:relative; min-width:0; display:grid; place-items:center; padding:14px; overflow:hidden;}
+  #svgWrap{width:100%; height:100%; min-width:0; min-height:0; touch-action:none; overflow:hidden;}
+  #svgWrap svg{width:100%; height:100%; display:block; cursor:default;}
+  #bedNote{
+    position:absolute; right:14px; top:12px;
+    background:rgba(255,255,255,.85); border:1px solid var(--line); border-radius:10px;
+    padding:6px 10px; font-size:11px; color:var(--sub); pointer-events:none;
+  }
+  #zoomBar{
+    position:absolute; left:14px; top:12px; display:flex; gap:6px;
+  }
+  #zoomBar button{
+    padding:7px 12px; font-size:12.5px; font-weight:800; font-family:inherit;
+    border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.92);
+    color:var(--ink); cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  #zoomBar button:hover:not(:disabled){border-color:var(--accent);}
+  #zoomBar button:disabled{opacity:.35; cursor:default;}
+  footer{
+    flex:0 0 auto; display:flex; align-items:center; gap:14px;
+    padding:11px 18px; background:var(--panel); border-top:1px solid var(--line);
+  }
+  #stats{font-size:12px; color:var(--sub); line-height:1.5; flex:1; min-width:0;}
+  #stats .warn{color:#c0392b; font-weight:700;}
+  footer .nameWrap{display:flex; align-items:center; gap:6px; flex:0 0 auto;}
+  footer .nameWrap span{font-size:12px; font-weight:700; color:var(--sub);}
+  footer .nameWrap input{width:130px; padding:8px 10px; font-size:14px;}
+  #dl{
+    border:none; cursor:pointer; font-family:inherit; flex:0 0 auto;
+    background:var(--accent); color:#fff; font-size:15px; font-weight:800;
+    padding:12px 24px; border-radius:999px; letter-spacing:.05em;
+    box-shadow:0 4px 0 var(--accent-dk); transition:transform .08s, box-shadow .08s;
+  }
+  #dl:hover{filter:brightness(1.05);}
+  #dl:active{transform:translateY(3px); box-shadow:0 1px 0 var(--accent-dk);}
+  /* 作品コード */
+  #shareBox{
+    flex:0 0 auto; border-top:1px solid var(--line);
+    padding:0 16px 12px; background:#f7fafb;
+  }
+  #shareBox summary{
+    cursor:pointer; list-style:none; padding:11px 0 9px;
+    font-size:11px; font-weight:800; letter-spacing:.12em; color:var(--sub);
+    user-select:none;
+  }
+  #shareBox summary::before{content:"▸ "; color:var(--accent);}
+  #shareBox[open] summary::before{content:"▾ ";}
+  #shareBox summary::-webkit-details-marker{display:none;}
+  #shareBox summary:hover{color:var(--ink);}
+  #shareBox input[type=text]{font-size:13px; padding:8px 10px; font-weight:600;}
+  #shareBox .row{display:flex; gap:6px; margin-bottom:8px;}
+  #shareBox .row .btn2{flex:0 0 auto; padding:8px 12px;}
+  #codeMsg{font-size:11px; color:var(--accent-dk); font-weight:700; min-height:15px; margin-top:2px;}
+  #codeMsg.err{color:#c0392b;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">CAD</div>
+  <h1>レーザーCAD</h1>
+  <div class="tag">じゆうに設計 → SVG → LightBurn ｜ カット=<span style="color:#ff8a7a">赤線</span>・彫刻=<span style="color:#e8eef2">黒ぬり</span></div>
+  <a class="sis" href="laser-koubou.html">🔧 レーザー工房へ</a>
+</header>
+<main>
+  <div id="panel">
+    <div id="controls">
+      <div class="sec-title">図形をおく（クリックで追加）</div>
+      <div id="shapeBtns"></div>
+      <div class="sec-title">かざりスタンプ</div>
+      <div id="stampBtns"></div>
+      <div class="sec-title">えらんだ図形</div>
+      <div id="propBox"><div id="selHint">図形をクリックすると、ここでサイズや角度を調整できます。<br>Shift+クリックで複数選択／ドラッグで移動。</div></div>
+      <div class="sec-title">合体・くり抜き（2つ以上選んで）</div>
+      <button class="btnBig" id="opUnion">🔗 合体（ひとつにする）</button>
+      <button class="btnBig orange" id="opDiff">✂ くり抜き（上の図形で穴あけ）</button>
+      <div class="hint">くり抜きは「いちばん後ろの図形」から、重ねた図形の形をくり抜きます。</div>
+      <div class="sec-title">ならべる（2つ以上選んで）</div>
+      <div class="btngrid" id="alignBox">
+        <button class="btn2" data-al="l">|◀ 左</button>
+        <button class="btn2" data-al="cx">◆ 中央</button>
+        <button class="btn2" data-al="r">右 ▶|</button>
+        <button class="btn2" data-al="t">↑ 上</button>
+        <button class="btn2" data-al="cy">◆ 中段</button>
+        <button class="btn2" data-al="b">↓ 下</button>
+        <button class="btn2" data-al="dx">↔ 等間隔</button>
+        <button class="btn2" data-al="dy">↕ 等間隔</button>
+        <button class="btn2" data-al="mat">材料の中央</button>
+      </div>
+      <div class="sec-title">材料とマス目</div>
+      <div class="dims2">
+        <div class="grp"><label>よこ幅 <span class="val" id="matWv">200 mm</span></label><input type="number" id="matW" min="20" max="400" step="5" value="200"></div>
+        <div class="grp"><label>たて幅 <span class="val" id="matHv">150 mm</span></label><input type="number" id="matH" min="20" max="415" step="5" value="150"></div>
+      </div>
+      <div class="grp"><label>マス目スナップ</label>
+        <div class="seg" id="gridSeg">
+          <button data-g="1">1mm</button><button data-g="5" class="on">5mm</button><button data-g="10">10mm</button><button data-g="0">なし</button>
+        </div>
+      </div>
+      <div class="sec-title">編集</div>
+      <div class="btngrid">
+        <button class="btn2" id="btnSelAll">ぜんぶ選択</button>
+        <button class="btn2" id="btnDeselect">選択解除</button>
+        <button class="btn2 warn" id="btnClear">ぜんぶ消す</button>
+      </div>
+      <div class="hint">キー操作：Ctrl+Z もどす／Ctrl+Y すすむ／Delete 削除／Ctrl+D ふくせい／矢印キーで移動（Shift＋=10mm・Ctrl＋=0.1mm）</div>
+      <div class="hint">範囲選択：<b style="color:#1fa34a">←左へドラッグ（緑）</b>=触れた図形を選択／<b style="color:#c0392b">→右へドラッグ（赤）</b>=全部囲んだ図形だけ選択</div>
+    </div>
+    <details id="shareBox">
+      <summary>作品コード（保存・提出・よみこみ）</summary>
+      <div class="row"><input type="text" id="codeOut" readonly placeholder="「コードを作る」を押してね"><button class="btn2" id="codeMake">コードを作る</button><button class="btn2" id="codeCopy">コピー</button></div>
+      <div class="row"><input type="text" id="codeIn" placeholder="LC1. で始まるコードを貼り付け"><button class="btn2" id="codeLoad">よみこむ</button></div>
+      <div id="codeMsg"></div>
+    </details>
+  </div>
+  <div id="stage">
+    <div id="svgWrap"></div>
+    <div id="bedNote">加工エリア最大 400×415mm（Falcon2 Pro）</div>
+    <div id="zoomBar">
+      <button id="btnUndo" title="もどす (Ctrl+Z)">↩ もどす</button>
+      <button id="btnRedo" title="すすむ (Ctrl+Y)">↪</button>
+      <button id="btnZoomIn">🔍＋</button>
+      <button id="btnZoomOut">🔍−</button>
+      <button id="btnZoomFit">全体</button>
+    </div>
+  </div>
+</main>
+<footer>
+  <div id="stats"></div>
+  <div class="nameWrap"><span>名前</span><input type="text" id="uname" placeholder="れい：たろう" maxlength="20"></div>
+  <button id="dl">SVGダウンロード</button>
+</footer>
+<script>
+"use strict";
+// ============================================================
+// 幾何エンジン（Martinez–Rueda ブール演算）— node の engine_test.mjs で回帰確認済み
+// リング = [[x,y],...]（閉じない）。領域 = リング配列（偶奇規則）。
+// ============================================================
+const INTERSECTION = 0, UNION = 1, DIFFERENCE = 2, XOR = 3;
+const EDGE_NORMAL = 0, NON_CONTRIBUTING = 1, SAME_TRANSITION = 2, DIFFERENT_TRANSITION = 3;
+
+const signedArea3 = (p0, p1, p2) =>
+  (p0[0] - p2[0]) * (p1[1] - p2[1]) - (p1[0] - p2[0]) * (p0[1] - p2[1]);
+const ptEq = (a, b) => a[0] === b[0] && a[1] === b[1];
+
+class SweepEvent {
+  constructor(point, left, otherEvent, isSubject) {
+    this.point = point; this.left = left; this.otherEvent = otherEvent;
+    this.isSubject = isSubject; this.type = EDGE_NORMAL;
+    this.inOut = false; this.otherInOut = false;
+    this.prevInResult = null; this.inResult = false;
+    this.pos = 0; this.contourId = 0;
+  }
+  isBelow(p) {
+    const p0 = this.point, p1 = this.otherEvent.point;
+    return this.left ? signedArea3(p0, p1, p) > 0 : signedArea3(p1, p0, p) > 0;
+  }
+  isAbove(p) { return !this.isBelow(p); }
+  isVertical() { return this.point[0] === this.otherEvent.point[0]; }
+}
+
+function compareEvents(e1, e2) {
+  const p1 = e1.point, p2 = e2.point;
+  if (p1[0] > p2[0]) return 1;
+  if (p1[0] < p2[0]) return -1;
+  if (p1[1] !== p2[1]) return p1[1] > p2[1] ? 1 : -1;
+  if (e1.left !== e2.left) return e1.left ? 1 : -1;
+  if (signedArea3(p1, e1.otherEvent.point, e2.otherEvent.point) !== 0) {
+    return !e1.isBelow(e2.otherEvent.point) ? 1 : -1;
+  }
+  return (!e1.isSubject && e2.isSubject) ? 1 : -1;
+}
+
+function compareSegments(le1, le2) {
+  if (le1 === le2) return 0;
+  if (signedArea3(le1.point, le1.otherEvent.point, le2.point) !== 0 ||
+      signedArea3(le1.point, le1.otherEvent.point, le2.otherEvent.point) !== 0) {
+    if (ptEq(le1.point, le2.point)) return le1.isBelow(le2.otherEvent.point) ? -1 : 1;
+    if (le1.point[0] === le2.point[0]) return le1.point[1] < le2.point[1] ? -1 : 1;
+    if (compareEvents(le1, le2) === 1) return le2.isAbove(le1.point) ? -1 : 1;
+    return le1.isBelow(le2.point) ? -1 : 1;
+  }
+  if (le1.isSubject === le2.isSubject) {
+    let p1 = le1.point, p2 = le2.point;
+    if (p1[0] === p2[0] && p1[1] === p2[1]) {
+      p1 = le1.otherEvent.point; p2 = le2.otherEvent.point;
+      if (p1[0] === p2[0] && p1[1] === p2[1]) return 0;
+      return le1.contourId > le2.contourId ? 1 : -1;
+    }
+  } else {
+    return le1.isSubject ? -1 : 1;
+  }
+  return compareEvents(le1, le2) === 1 ? 1 : -1;
+}
+
+class TinyQueue {
+  constructor() { this.data = []; }
+  get length() { return this.data.length; }
+  push(item) {
+    this.data.push(item);
+    let pos = this.data.length - 1;
+    while (pos > 0) {
+      const parent = (pos - 1) >> 1;
+      if (compareEvents(this.data[pos], this.data[parent]) < 0) {
+        const t = this.data[parent]; this.data[parent] = this.data[pos]; this.data[pos] = t;
+        pos = parent;
+      } else break;
+    }
+  }
+  pop() {
+    const top = this.data[0];
+    const last = this.data.pop();
+    if (this.data.length) {
+      this.data[0] = last;
+      let pos = 0;
+      const len = this.data.length;
+      while (true) {
+        let best = pos;
+        const l = 2 * pos + 1, r = 2 * pos + 2;
+        if (l < len && compareEvents(this.data[l], this.data[best]) < 0) best = l;
+        if (r < len && compareEvents(this.data[r], this.data[best]) < 0) best = r;
+        if (best === pos) break;
+        const t = this.data[best]; this.data[best] = this.data[pos]; this.data[pos] = t;
+        pos = best;
+      }
+    }
+    return top;
+  }
+}
+
+const crossP = (a, b) => a[0] * b[1] - a[1] * b[0];
+const dotP = (a, b) => a[0] * b[0] + a[1] * b[1];
+const toPoint = (p, s, d) => [p[0] + s * d[0], p[1] + s * d[1]];
+
+function segmentIntersection(a1, a2, b1, b2) {
+  const va = [a2[0] - a1[0], a2[1] - a1[1]];
+  const vb = [b2[0] - b1[0], b2[1] - b1[1]];
+  const e = [b1[0] - a1[0], b1[1] - a1[1]];
+  let kross = crossP(va, vb);
+  const sqrLenA = dotP(va, va);
+  if (kross * kross > 0) {
+    const s = crossP(e, vb) / kross;
+    if (s < 0 || s > 1) return null;
+    const t = crossP(e, va) / kross;
+    if (t < 0 || t > 1) return null;
+    if (s === 0 || s === 1) return [toPoint(a1, s, va)];
+    if (t === 0 || t === 1) return [toPoint(b1, t, vb)];
+    return [toPoint(a1, s, va)];
+  }
+  kross = crossP(e, va);
+  if (kross * kross > 0) return null;
+  const sa = dotP(va, e) / sqrLenA;
+  const sb = sa + dotP(va, vb) / sqrLenA;
+  const smin = Math.min(sa, sb), smax = Math.max(sa, sb);
+  if (smin <= 1 && smax >= 0) {
+    if (smin === 1) return [toPoint(a1, smin, va)];
+    if (smax === 0) return [toPoint(a1, smax, va)];
+    return [toPoint(a1, Math.max(smin, 0), va), toPoint(a1, Math.min(smax, 1), va)];
+  }
+  return null;
+}
+
+function divideSegment(se, p, queue) {
+  const r = new SweepEvent(p, false, se, se.isSubject);
+  const l = new SweepEvent(p, true, se.otherEvent, se.isSubject);
+  r.contourId = l.contourId = se.contourId;
+  if (compareEvents(l, se.otherEvent) > 0) {
+    se.otherEvent.left = true;
+    l.left = false;
+  }
+  se.otherEvent.otherEvent = l;
+  se.otherEvent = r;
+  queue.push(l);
+  queue.push(r);
+}
+
+function possibleIntersection(se1, se2, queue) {
+  const inter = segmentIntersection(se1.point, se1.otherEvent.point, se2.point, se2.otherEvent.point);
+  const n = inter ? inter.length : 0;
+  if (n === 0) return 0;
+  if (n === 1 && (ptEq(se1.point, se2.point) || ptEq(se1.otherEvent.point, se2.otherEvent.point))) return 0;
+  if (n === 2 && se1.isSubject === se2.isSubject) return 0;
+  if (n === 1) {
+    if (!ptEq(se1.point, inter[0]) && !ptEq(se1.otherEvent.point, inter[0])) divideSegment(se1, inter[0], queue);
+    if (!ptEq(se2.point, inter[0]) && !ptEq(se2.otherEvent.point, inter[0])) divideSegment(se2, inter[0], queue);
+    return 1;
+  }
+  const events = [];
+  let leftCoincide = false, rightCoincide = false;
+  if (ptEq(se1.point, se2.point)) leftCoincide = true;
+  else if (compareEvents(se1, se2) === 1) events.push(se2, se1);
+  else events.push(se1, se2);
+  if (ptEq(se1.otherEvent.point, se2.otherEvent.point)) rightCoincide = true;
+  else if (compareEvents(se1.otherEvent, se2.otherEvent) === 1) events.push(se2.otherEvent, se1.otherEvent);
+  else events.push(se1.otherEvent, se2.otherEvent);
+  if ((leftCoincide && rightCoincide) || leftCoincide) {
+    se2.type = NON_CONTRIBUTING;
+    se1.type = (se2.inOut === se1.inOut) ? SAME_TRANSITION : DIFFERENT_TRANSITION;
+    if (leftCoincide && !rightCoincide) divideSegment(events[1].otherEvent, events[0].point, queue);
+    return 2;
+  }
+  if (rightCoincide) {
+    divideSegment(events[0], events[1].point, queue);
+    return 3;
+  }
+  if (events[0] !== events[3].otherEvent) {
+    divideSegment(events[0], events[1].point, queue);
+    divideSegment(events[1], events[2].point, queue);
+    return 3;
+  }
+  divideSegment(events[0], events[1].point, queue);
+  divideSegment(events[3].otherEvent, events[2].point, queue);
+  return 3;
+}
+
+function inResult(event, operation) {
+  switch (event.type) {
+    case EDGE_NORMAL:
+      switch (operation) {
+        case INTERSECTION: return !event.otherInOut;
+        case UNION: return event.otherInOut;
+        case DIFFERENCE:
+          return (event.isSubject && event.otherInOut) || (!event.isSubject && !event.otherInOut);
+        case XOR: return true;
+      }
+      break;
+    case SAME_TRANSITION: return operation === INTERSECTION || operation === UNION;
+    case DIFFERENT_TRANSITION: return operation === DIFFERENCE;
+    case NON_CONTRIBUTING: return false;
+  }
+  return false;
+}
+
+function computeFields(event, prev, operation) {
+  if (prev === null) {
+    event.inOut = false;
+    event.otherInOut = true;
+  } else if (event.isSubject === prev.isSubject) {
+    event.inOut = !prev.inOut;
+    event.otherInOut = prev.otherInOut;
+  } else {
+    event.inOut = !prev.otherInOut;
+    event.otherInOut = prev.isVertical() ? !prev.inOut : prev.inOut;
+  }
+  if (prev) {
+    event.prevInResult = (!inResult(prev, operation) || prev.isVertical())
+      ? prev.prevInResult : prev;
+  }
+  event.inResult = inResult(event, operation);
+}
+
+function fillQueue(subject, clipping, sbbox, cbbox) {
+  const queue = new TinyQueue();
+  let contourId = 0;
+  const processRings = (rings, isSubject, bbox) => {
+    for (const ring of rings) {
+      contourId++;
+      for (let i = 0; i < ring.length; i++) {
+        const s1 = ring[i], s2 = ring[(i + 1) % ring.length];
+        if (ptEq(s1, s2)) continue;
+        const e1 = new SweepEvent(s1, false, null, isSubject);
+        const e2 = new SweepEvent(s2, false, e1, isSubject);
+        e1.otherEvent = e2;
+        e1.contourId = e2.contourId = contourId;
+        if (compareEvents(e1, e2) < 0) e1.left = true; else e2.left = true;
+        bbox[0] = Math.min(bbox[0], s1[0]); bbox[1] = Math.min(bbox[1], s1[1]);
+        bbox[2] = Math.max(bbox[2], s1[0]); bbox[3] = Math.max(bbox[3], s1[1]);
+        queue.push(e1);
+        queue.push(e2);
+      }
+    }
+  };
+  processRings(subject, true, sbbox);
+  processRings(clipping, false, cbbox);
+  return queue;
+}
+
+function subdivideSegments(queue, sbbox, cbbox, operation) {
+  const sweepLine = [];
+  const sortedEvents = [];
+  const rightbound = Math.min(sbbox[2], cbbox[2]);
+  while (queue.length) {
+    const event = queue.pop();
+    sortedEvents.push(event);
+    if ((operation === INTERSECTION && event.point[0] > rightbound) ||
+        (operation === DIFFERENCE && event.point[0] > sbbox[2])) break;
+    if (event.left) {
+      let i = 0;
+      while (i < sweepLine.length && compareSegments(sweepLine[i], event) < 0) i++;
+      sweepLine.splice(i, 0, event);
+      const prev = i > 0 ? sweepLine[i - 1] : null;
+      const next = i + 1 < sweepLine.length ? sweepLine[i + 1] : null;
+      computeFields(event, prev, operation);
+      if (next && possibleIntersection(event, next, queue) === 2) {
+        computeFields(event, prev, operation);
+        computeFields(next, event, operation);
+      }
+      if (prev && possibleIntersection(prev, event, queue) === 2) {
+        const prevprev = i > 1 ? sweepLine[i - 2] : null;
+        computeFields(prev, prevprev, operation);
+        computeFields(event, prev, operation);
+      }
+    } else {
+      const leftEv = event.otherEvent;
+      const i = sweepLine.indexOf(leftEv);
+      if (i >= 0) {
+        const prev = i > 0 ? sweepLine[i - 1] : null;
+        const next = i + 1 < sweepLine.length ? sweepLine[i + 1] : null;
+        sweepLine.splice(i, 1);
+        if (prev && next) possibleIntersection(prev, next, queue);
+      }
+    }
+  }
+  return sortedEvents;
+}
+
+function orderEvents(sortedEvents) {
+  const resultEvents = [];
+  for (const event of sortedEvents) {
+    if ((event.left && event.inResult) || (!event.left && event.otherEvent.inResult)) {
+      resultEvents.push(event);
+    }
+  }
+  let sorted = false;
+  while (!sorted) {
+    sorted = true;
+    for (let i = 0; i < resultEvents.length - 1; i++) {
+      if (compareEvents(resultEvents[i], resultEvents[i + 1]) === 1) {
+        const t = resultEvents[i]; resultEvents[i] = resultEvents[i + 1]; resultEvents[i + 1] = t;
+        sorted = false;
+      }
+    }
+  }
+  for (let i = 0; i < resultEvents.length; i++) resultEvents[i].pos = i;
+  for (let i = 0; i < resultEvents.length; i++) {
+    if (!resultEvents[i].left) {
+      const t = resultEvents[i].pos;
+      resultEvents[i].pos = resultEvents[i].otherEvent.pos;
+      resultEvents[i].otherEvent.pos = t;
+    }
+  }
+  return resultEvents;
+}
+
+function nextPos(pos, resultEvents, processed, origPos) {
+  let newPos = pos + 1;
+  const p = resultEvents[pos].point;
+  const len = resultEvents.length;
+  let p1 = newPos < len ? resultEvents[newPos].point : null;
+  while (newPos < len && p1[0] === p[0] && p1[1] === p[1]) {
+    if (!processed[newPos]) return newPos;
+    newPos++;
+    p1 = newPos < len ? resultEvents[newPos].point : null;
+  }
+  newPos = pos - 1;
+  while (newPos > origPos && processed[newPos]) newPos--;
+  return newPos;
+}
+
+function connectEdges(sortedEvents) {
+  const resultEvents = orderEvents(sortedEvents);
+  const processed = new Array(resultEvents.length).fill(false);
+  const contours = [];
+  for (let i = 0; i < resultEvents.length; i++) {
+    if (processed[i]) continue;
+    const contour = [];
+    let pos = i;
+    const initial = resultEvents[i].point;
+    contour.push(initial);
+    let guard = resultEvents.length + 8;
+    while (guard-- > 0) {
+      processed[pos] = true;
+      pos = resultEvents[pos].pos;
+      processed[pos] = true;
+      if (ptEq(resultEvents[pos].point, initial)) break;
+      contour.push(resultEvents[pos].point);
+      pos = nextPos(pos, resultEvents, processed, i);
+      if (pos <= i || processed[pos]) break;
+    }
+    if (contour.length >= 3) contours.push(contour);
+  }
+  return contours;
+}
+
+const cloneRings = (rings) => rings.map(r => r.map(p => [p[0], p[1]]));
+
+function snapRings(rings) {
+  const R = 1e6;
+  const out = [];
+  for (const ring of rings) {
+    const q = [];
+    for (const p of ring) {
+      const x = Math.round(p[0] * R) / R, y = Math.round(p[1] * R) / R;
+      if (q.length && q[q.length - 1][0] === x && q[q.length - 1][1] === y) continue;
+      q.push([x, y]);
+    }
+    while (q.length > 1 && q[0][0] === q[q.length - 1][0] && q[0][1] === q[q.length - 1][1]) q.pop();
+    if (q.length >= 3) out.push(q);
+  }
+  return out;
+}
+
+function boolop(subjectIn, clippingIn, operation) {
+  const subject = snapRings(subjectIn);
+  const clipping = snapRings(clippingIn);
+  const sEmpty = subject.length === 0, cEmpty = clipping.length === 0;
+  if (sEmpty && cEmpty) return [];
+  if (sEmpty) return (operation === UNION || operation === XOR) ? cloneRings(clipping) : [];
+  if (cEmpty) return operation === INTERSECTION ? [] : cloneRings(subject);
+  const sbbox = [Infinity, Infinity, -Infinity, -Infinity];
+  const cbbox = [Infinity, Infinity, -Infinity, -Infinity];
+  const queue = fillQueue(subject, clipping, sbbox, cbbox);
+  if (sbbox[0] > cbbox[2] || cbbox[0] > sbbox[2] || sbbox[1] > cbbox[3] || cbbox[1] > sbbox[3]) {
+    if (operation === INTERSECTION) return [];
+    if (operation === DIFFERENCE) return cloneRings(subject);
+    return cloneRings(subject).concat(cloneRings(clipping));
+  }
+  const sortedEvents = subdivideSegments(queue, sbbox, cbbox, operation);
+  return connectEdges(sortedEvents);
+}
+
+function ringArea(ring) {
+  let a = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i], q = ring[(i + 1) % ring.length];
+    a += p[0] * q[1] - q[0] * p[1];
+  }
+  return a / 2;
+}
+
+function pointInRings(x, y, rings) {
+  let inside = false;
+  for (const ring of rings) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function ringsBBox(rings) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const ring of rings) for (const p of ring) {
+    if (p[0] < x0) x0 = p[0];
+    if (p[1] < y0) y0 = p[1];
+    if (p[0] > x1) x1 = p[0];
+    if (p[1] > y1) y1 = p[1];
+  }
+  return [x0, y0, x1, y1];
+}
+
+function transformRings(rings, tx, ty, rotDeg, sx, sy) {
+  const rad = rotDeg * Math.PI / 180;
+  const c = Math.cos(rad), s = Math.sin(rad);
+  return rings.map(ring => ring.map(([x, y]) => {
+    const px = x * sx, py = y * sy;
+    return [tx + px * c - py * s, ty + px * s + py * c];
+  }));
+}
+
+function unionAll(ringsList) {
+  let acc = null;
+  for (const rings of ringsList) {
+    if (!rings || !rings.length) continue;
+    acc = acc === null ? cloneRings(rings) : boolop(acc, rings, UNION);
+  }
+  return acc || [];
+}
+// ============================================================
+// 図形ジェネレーター（ローカル座標：中心(0,0)、幅w×高hに収まる）
+// ============================================================
+function genRect(w, h, r) {
+  r = Math.max(0, Math.min(r || 0, w / 2, h / 2));
+  const x0 = -w / 2, y0 = -h / 2, x1 = w / 2, y1 = h / 2;
+  if (r <= 0.01) return [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]];
+  const ring = [];
+  const arc = (cx, cy, a0, a1) => {
+    const N = 8;
+    for (let i = 0; i <= N; i++) {
+      const a = a0 + (a1 - a0) * i / N;
+      ring.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+  };
+  arc(x0 + r, y0 + r, Math.PI, Math.PI * 1.5);
+  arc(x1 - r, y0 + r, Math.PI * 1.5, Math.PI * 2);
+  arc(x1 - r, y1 - r, 0, Math.PI * 0.5);
+  arc(x0 + r, y1 - r, Math.PI * 0.5, Math.PI);
+  return [ring];
+}
+function genEllipse(w, h, n = 64) {
+  const ring = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    ring.push([w / 2 * Math.cos(a), h / 2 * Math.sin(a)]);
+  }
+  return [ring];
+}
+function genPoly(w, h, n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
+    pts.push([Math.cos(a), Math.sin(a)]);
+  }
+  return normalizeToBox([pts], w, h);
+}
+function genStar(w, h, n, inner) {
+  const pts = [];
+  for (let i = 0; i < n * 2; i++) {
+    const a = -Math.PI / 2 + (i / (n * 2)) * Math.PI * 2;
+    const r = i % 2 === 0 ? 1 : inner;
+    pts.push([r * Math.cos(a), r * Math.sin(a)]);
+  }
+  return normalizeToBox([pts], w, h);
+}
+function genHeart(w, h) {
+  const pts = [];
+  for (let i = 0; i < 72; i++) {
+    const t = (i / 72) * Math.PI * 2;
+    pts.push([
+      16 * Math.pow(Math.sin(t), 3),
+      -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)),
+    ]);
+  }
+  return normalizeToBox([pts], w, h);
+}
+// リング群を中心(0,0)・幅w×高hのボックスにフィット
+function normalizeToBox(rings, w, h) {
+  const bb = ringsBBox(rings);
+  const bw = bb[2] - bb[0] || 1, bh = bb[3] - bb[1] || 1;
+  const cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2;
+  return rings.map(r => r.map(([x, y]) => [(x - cx) / bw * w, (y - cy) / bh * h]));
+}
+
+// ---------- 輪郭トレース（レーザー工房から移植：右折優先エッジ追跡） ----------
+function traceOutlines(get, cols, rows) {
+  const filled = (c, r) => c >= 0 && r >= 0 && c < cols && r < rows && !!get(c, r);
+  const edges = new Map();
+  const add = (x1, y1, x2, y2) =>
+    edges.set(x1 + "," + y1 + "," + Math.sign(x2 - x1) + "," + Math.sign(y2 - y1), [x2, y2]);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    if (!filled(c, r)) continue;
+    if (!filled(c, r - 1)) add(c, r, c + 1, r);
+    if (!filled(c + 1, r)) add(c + 1, r, c + 1, r + 1);
+    if (!filled(c, r + 1)) add(c + 1, r + 1, c, r + 1);
+    if (!filled(c - 1, r)) add(c, r + 1, c, r);
+  }
+  const loops = [];
+  while (edges.size) {
+    const first = edges.keys().next().value;
+    const [sx, sy, dx0, dy0] = first.split(",").map(Number);
+    const end = edges.get(first);
+    edges.delete(first);
+    const pts = [[sx, sy]];
+    let cx = end[0], cy = end[1], dx = dx0, dy = dy0, guard = 1e6;
+    while ((cx !== sx || cy !== sy) && guard-- > 0) {
+      pts.push([cx, cy]);
+      const cand = [[-dy, dx], [dx, dy], [dy, -dx]];
+      let moved = false;
+      for (const [nx, ny] of cand) {
+        const k = cx + "," + cy + "," + nx + "," + ny;
+        if (edges.has(k)) {
+          const e = edges.get(k);
+          edges.delete(k);
+          dx = nx; dy = ny; cx = e[0]; cy = e[1];
+          moved = true; break;
+        }
+      }
+      if (!moved) break;
+    }
+    loops.push(pts);
+  }
+  return loops;
+}
+function mergeCollinear(pts) {
+  const q = [], n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const a = pts[(i + n - 1) % n], b = pts[i], c = pts[(i + 1) % n];
+    if ((b[0] - a[0]) * (c[1] - b[1]) !== (b[1] - a[1]) * (c[0] - b[0])) q.push(b);
+  }
+  return q;
+}
+// 角を丸めてなめらかに（Chaikin 1回）
+function chaikin(pts) {
+  const out = [];
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+    out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+  }
+  return out;
+}
+
+// ---------- 文字 → 輪郭リング（canvas に描いてトレース） ----------
+const textRingCache = new Map();
+function traceTextRings(text) {
+  const key = text;
+  if (textRingCache.has(key)) return textRingCache.get(key);
+  const H = 100, PAD = 6;
+  const cv = document.createElement("canvas");
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  const font = `900 ${H}px "Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif`;
+  ctx.font = font;
+  const tw = Math.ceil(ctx.measureText(text).width);
+  if (tw < 1) return null;
+  cv.width = tw + PAD * 2;
+  cv.height = Math.ceil(H * 1.35) + PAD * 2;
+  const c2 = cv.getContext("2d", { willReadFrequently: true });
+  c2.font = font;
+  c2.textBaseline = "top";
+  c2.fillStyle = "#000";
+  c2.fillText(text, PAD, PAD + H * 0.08);
+  const img = c2.getImageData(0, 0, cv.width, cv.height).data;
+  const get = (c, r) => img[(r * cv.width + c) * 4 + 3] > 127;
+  let loops = traceOutlines(get, cv.width, cv.height).map(mergeCollinear);
+  loops = loops.filter(l => l.length >= 4).map(l => chaikin(l));
+  if (!loops.length) return null;
+  const bb = ringsBBox(loops);
+  const bw = bb[2] - bb[0], bh = bb[3] - bb[1];
+  const cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2;
+  const rings = loops.map(l => l.map(([x, y]) => [(x - cx) / bh, (y - cy) / bh])); // 高さ=1 に正規化
+  const res = { rings, aspect: bw / bh };
+  textRingCache.set(key, res);
+  return res;
+}
+
+// ---------- かざりスタンプ（起動時にエンジンで合成し正規化） ----------
+const STAMPS = {};
+function circleAt(cx, cy, r, n = 40) {
+  const ring = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    ring.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  }
+  return [ring];
+}
+function ellipseAt(cx, cy, rx, ry, rot = 0, n = 40) {
+  return transformRings(genEllipse(rx * 2, ry * 2, n), cx, cy, rot, 1, 1);
+}
+function rectAt(cx, cy, w, h, rot = 0) {
+  return transformRings(genRect(w, h, 0), cx, cy, rot, 1, 1);
+}
+function buildStamps() {
+  const put = (id, label, rings) => {
+    const bb = ringsBBox(rings);
+    const bw = bb[2] - bb[0], bh = bb[3] - bb[1];
+    const cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2;
+    const s = 1 / Math.max(bw, bh);
+    STAMPS[id] = {
+      label,
+      aspect: bw / bh,
+      rings: rings.map(r => r.map(([x, y]) => [(x - cx) * s, (y - cy) * s])),
+    };
+  };
+  put("heart", "ハート", genHeart(20, 18));
+  put("moon", "月", boolop(circleAt(0, 0, 10, 56), circleAt(4.5, -1.5, 8.2, 56), DIFFERENCE));
+  put("flower", "花", unionAll([
+    ...[0, 1, 2, 3, 4].map(i => {
+      const a = -Math.PI / 2 + i * Math.PI * 2 / 5;
+      return circleAt(5.4 * Math.cos(a), 5.4 * Math.sin(a), 4.4, 32);
+    }),
+    circleAt(0, 0, 4, 32),
+  ]));
+  put("clover", "クローバー", unionAll([
+    circleAt(0, -4.4, 4.1, 32),
+    circleAt(-4.2, 2.4, 4.1, 32),
+    circleAt(4.2, 2.4, 4.1, 32),
+    transformRings(genRect(1.9, 7, 0), 0.9, 6.5, 18, 1, 1),
+  ]));
+  put("note", "音符", unionAll([
+    ellipseAt(-4.2, 12, 3.4, 2.6, -20, 32),
+    rectAt(-1.6, 3.5, 1.7, 17),
+    [[[-2.4, -5], [4.6, -2.4], [4.6, 1.6], [-2.4, -1]]],
+  ]));
+  put("bolt", "稲妻", [[[2.2, -10], [-4.4, 1.4], [-0.6, 1.4], [-2.6, 10], [4.6, -2.2], [0.6, -2.2]]]);
+  put("crown", "王冠", [[[-9, 7], [-9, -3], [-4.6, 1], [0, -7], [4.6, 1], [9, -3], [9, 7]]]);
+  put("cat", "ネコ", unionAll([
+    circleAt(0, 1.5, 8, 48),
+    [[[-7.6, -3], [-6.8, -10.6], [-1.4, -6.4]]],
+    [[[7.6, -3], [6.8, -10.6], [1.4, -6.4]]],
+  ]));
+  put("fish", "さかな", unionAll([
+    ellipseAt(-2, 0, 7.6, 5, 0, 48),
+    [[[4, 0], [10, -5], [10, 5]]],
+  ]));
+  put("house", "いえ", unionAll([
+    rectAt(0, 3.2, 14, 10),
+    [[[-8.6, -1.4], [0, -9], [8.6, -1.4]]],
+  ]));
+  put("fukidashi", "ふきだし", unionAll([
+    genRect(20, 13, 3.4),
+    [[[-4, 6], [3.5, 6], [-3, 11.5]]],
+  ]));
+  put("paw", "肉球", unionAll([
+    ellipseAt(0, 3.4, 5.6, 4.6, 0, 40),
+    ellipseAt(-6.4, -1.6, 2.2, 2.8, 18, 24),
+    ellipseAt(-2.3, -4.4, 2.1, 2.8, 8, 24),
+    ellipseAt(2.3, -4.4, 2.1, 2.8, -8, 24),
+    ellipseAt(6.4, -1.6, 2.2, 2.8, -18, 24),
+  ]));
+}
+//@CHUNK_EDITOR
+// ============================================================
+// エディタ本体
+// ============================================================
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const snapV = (v, g) => g > 0 ? Math.round(v / g) * g : Math.round(v * 10) / 10;
+
+let doc = { mat: { w: 200, h: 150 }, grid: 5, shapes: [] };
+let sel = [];
+let nextId = 1;
+let history = [], histPos = -1;
+let vb = { x: -12, y: -12, w: 224, h: 174 };
+let drag = null;
+let overlapWarn = "";
+
+// ---------- 図形 → リング ----------
+function shapeLocalRings(s) {
+  switch (s.type) {
+    case "rect": return genRect(s.w, s.h, s.r || 0);
+    case "circle": return genEllipse(s.w, s.h);
+    case "tri": return genPoly(s.w, s.h, 3);
+    case "poly": return genPoly(s.w, s.h, s.n || 6);
+    case "star": return genStar(s.w, s.h, s.n || 5, s.inner || 0.45);
+    case "heart": return genHeart(s.w, s.h);
+    case "hole": return genEllipse(s.w, s.h, 40);
+    case "stamp": {
+      const st = STAMPS[s.sid];
+      return st ? normalizeToBox(st.rings, s.w, s.h) : genRect(s.w, s.h, 0);
+    }
+    case "text": {
+      const t = traceTextRings(s.text || "？");
+      if (!t) return genRect(s.w, s.h, 0);
+      return t.rings.map(r => r.map(([x, y]) => [x * s.h, y * s.h]));
+    }
+    case "free": {
+      const sx = s.w / (s.bw || 1), sy = s.h / (s.bh || 1);
+      return s.rings.map(r => r.map(([x, y]) => [x * sx, y * sy]));
+    }
+  }
+  return [];
+}
+function worldRings(s) {
+  const key = [s.x, s.y, s.w, s.h, s.rot, s.r, s.n, s.inner, s.text, s.sid, s.type].join("|");
+  if (s._wkey !== key) {
+    s._wkey = key;
+    s._world = transformRings(shapeLocalRings(s), s.x, s.y, s.rot || 0, 1, 1);
+  }
+  return s._world;
+}
+function shapeBBox(s) { return ringsBBox(worldRings(s)); }
+function selShapes() { return doc.shapes.filter(s => sel.includes(s.id)); }
+function selBBox() {
+  const bbs = selShapes().map(shapeBBox);
+  return [Math.min(...bbs.map(b => b[0])), Math.min(...bbs.map(b => b[1])),
+          Math.max(...bbs.map(b => b[2])), Math.max(...bbs.map(b => b[3]))];
+}
+
+// ---------- 描画 ----------
+function ringsToPath(rings, dp = 3) {
+  let d = "";
+  for (const ring of rings) {
+    if (ring.length < 3) continue;
+    d += "M" + ring.map(p => p[0].toFixed(dp) + " " + p[1].toFixed(dp)).join("L") + "Z";
+  }
+  return d;
+}
+function viewScale() {
+  const r = $("svgWrap").getBoundingClientRect();
+  return Math.min(r.width / vb.w, r.height / vb.h) || 1;
+}
+function clientToWorld(ev) {
+  const r = $("svgWrap").getBoundingClientRect();
+  const s = Math.min(r.width / vb.w, r.height / vb.h);
+  const ox = (r.width - vb.w * s) / 2, oy = (r.height - vb.h * s) / 2;
+  return [vb.x + (ev.clientX - r.left - ox) / s, vb.y + (ev.clientY - r.top - oy) / s];
+}
+// 単独選択時のハンドル位置（world）：[4隅, 回転]
+function handlePoints(s) {
+  const pts = [[-s.w / 2, -s.h / 2], [s.w / 2, -s.h / 2], [s.w / 2, s.h / 2], [-s.w / 2, s.h / 2]];
+  const scale = viewScale();
+  pts.push([0, -s.h / 2 - 22 / scale]); // 回転ハンドル
+  const rad = (s.rot || 0) * Math.PI / 180, c = Math.cos(rad), si = Math.sin(rad);
+  return pts.map(([x, y]) => [s.x + x * c - y * si, s.y + x * si + y * c]);
+}
+
+function render() {
+  const W = doc.mat.w, H = doc.mat.h;
+  const scale = viewScale();
+  const px = v => v / scale; // スクリーンpx → world mm
+  let out = "";
+  // 材料
+  out += `<rect x="-2000" y="-2000" width="4000" height="4000" fill="#e6ebef"/>`;
+  out += `<rect x="1" y="1.6" width="${W}" height="${H}" rx="1.5" fill="rgba(0,0,0,.13)"/>`;
+  out += `<rect x="0" y="0" width="${W}" height="${H}" rx="1.5" fill="#f7e7cc" stroke="#c8b294" stroke-width="${px(1.2)}"/>`;
+  // マス目
+  if (doc.grid > 0) {
+    let g = "";
+    for (let x = doc.grid; x < W; x += doc.grid) g += `M${x} 0V${H}`;
+    for (let y = doc.grid; y < H; y += doc.grid) g += `M0 ${y}H${W}`;
+    out += `<path d="${g}" stroke="#e4d3ae" stroke-width="${px(0.7)}" fill="none"/>`;
+    let g10 = "";
+    const step = doc.grid < 10 ? 50 : 100;
+    for (let x = step; x < W; x += step) g10 += `M${x} 0V${H}`;
+    for (let y = step; y < H; y += step) g10 += `M0 ${y}H${W}`;
+    if (g10) out += `<path d="${g10}" stroke="#d9c497" stroke-width="${px(0.9)}" fill="none"/>`;
+  }
+  // 図形
+  for (const s of doc.shapes) {
+    const d = ringsToPath(worldRings(s));
+    if (!d) continue;
+    if (s.mode === "eng") {
+      out += `<path d="${d}" fill="#26313b" fill-rule="evenodd"/>`;
+    } else if (s.type === "hole") {
+      out += `<path d="${d}" fill="#e6ebef" stroke="#e11" stroke-width="${px(1.4)}"/>`;
+    } else {
+      out += `<path d="${d}" fill="#fbf1dd" fill-rule="evenodd" stroke="#e11" stroke-width="${px(1.4)}" stroke-linejoin="round"/>`;
+    }
+  }
+  // 選択表示
+  if (sel.length) {
+    for (const s of selShapes()) {
+      const bb = shapeBBox(s);
+      out += `<rect x="${bb[0]}" y="${bb[1]}" width="${bb[2] - bb[0]}" height="${bb[3] - bb[1]}" fill="none" stroke="var(--sel)" stroke-width="${px(1.2)}" stroke-dasharray="${px(5)} ${px(4)}"/>`;
+    }
+    if (sel.length === 1) {
+      const s = selShapes()[0];
+      const hp = handlePoints(s);
+      const hs = px(9);
+      out += `<line x1="${(hp[0][0] + hp[1][0]) / 2}" y1="${(hp[0][1] + hp[1][1]) / 2}" x2="${hp[4][0]}" y2="${hp[4][1]}" stroke="var(--sel)" stroke-width="${px(1.2)}"/>`;
+      for (let i = 0; i < 4; i++) {
+        out += `<rect x="${hp[i][0] - hs / 2}" y="${hp[i][1] - hs / 2}" width="${hs}" height="${hs}" fill="#fff" stroke="var(--sel)" stroke-width="${px(1.6)}"/>`;
+      }
+      out += `<circle cx="${hp[4][0]}" cy="${hp[4][1]}" r="${px(6)}" fill="#fff" stroke="var(--sel)" stroke-width="${px(1.6)}"/>`;
+    }
+  }
+  // ラバーバンド（LightBurn方式：左向き=緑・触れたら選択／右向き=赤・全部囲んだら選択）
+  if (drag && drag.kind === "rubber") {
+    const x = Math.min(drag.x0, drag.x1), y = Math.min(drag.y0, drag.y1);
+    const w = Math.abs(drag.x1 - drag.x0), h = Math.abs(drag.y1 - drag.y0);
+    const crossing = drag.x1 < drag.x0;
+    const col = crossing ? "#1fa34a" : "#e11";
+    const fillc = crossing ? "rgba(31,163,74,.10)" : "rgba(238,17,17,.08)";
+    out += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fillc}" stroke="${col}" stroke-width="${px(1.2)}" stroke-dasharray="${px(4)} ${px(3)}"/>`;
+  }
+  $("svgWrap").innerHTML =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" preserveAspectRatio="xMidYMid meet">${out}</svg>`;
+  updateStats();
+}
+
+function updateStats() {
+  const n = doc.shapes.length;
+  let cutLen = 0;
+  let outOfMat = false;
+  for (const s of doc.shapes) {
+    const bb = shapeBBox(s);
+    if (bb[0] < -0.05 || bb[1] < -0.05 || bb[2] > doc.mat.w + 0.05 || bb[3] > doc.mat.h + 0.05) outOfMat = true;
+    if (s.mode !== "eng") {
+      for (const ring of worldRings(s)) {
+        for (let i = 0; i < ring.length; i++) {
+          const p = ring[i], q = ring[(i + 1) % ring.length];
+          cutLen += Math.hypot(q[0] - p[0], q[1] - p[1]);
+        }
+      }
+    }
+  }
+  let html = `図形 ${n}個`;
+  if (sel.length) html += `（選択中 ${sel.length}個）`;
+  html += ` ｜ カット線 約${(cutLen / 10).toFixed(0)}cm ｜ 材料 ${doc.mat.w}×${doc.mat.h}mm`;
+  if (outOfMat) html += `<br><span class="warn">⚠ 材料からはみ出ている図形があります</span>`;
+  if (overlapWarn) html += `<br><span class="warn">${overlapWarn}</span>`;
+  $("stats").innerHTML = html;
+}
+
+// カット図形どうしの重なり警告（確定時のみ計算）
+function checkOverlaps() {
+  overlapWarn = "";
+  const cuts = doc.shapes.filter(s => s.mode !== "eng");
+  if (cuts.length > 24) return;
+  for (let i = 0; i < cuts.length && !overlapWarn; i++) {
+    for (let j = i + 1; j < cuts.length; j++) {
+      const a = shapeBBox(cuts[i]), b = shapeBBox(cuts[j]);
+      if (a[0] > b[2] || b[0] > a[2] || a[1] > b[3] || b[1] > a[3]) continue;
+      const ringsI = worldRings(cuts[i]), ringsJ = worldRings(cuts[j]);
+      const inter = boolop(ringsI, ringsJ, INTERSECTION);
+      const areaOf = rs => Math.abs(rs.reduce((a, r) => a + ringArea(r), 0));
+      const ia = areaOf(inter);
+      const small = Math.min(areaOf(ringsI), areaOf(ringsJ));
+      // 輪郭が交差しているときだけ警告（完全に内側＝穴あけは正常）
+      if (ia > 0.2 && ia < small * 0.98) {
+        overlapWarn = "⚠ カット図形の線が交差しています。切りはなれないように「合体」か「くり抜き」をしよう";
+        break;
+      }
+    }
+  }
+}
+
+// ---------- 履歴・保存 ----------
+const docJSON = () => JSON.stringify(doc, (k, v) => k.startsWith("_") ? undefined : v);
+function pushHistory() {
+  history = history.slice(0, histPos + 1);
+  history.push(docJSON());
+  if (history.length > 100) history.shift();
+  histPos = history.length - 1;
+  updateHistBtns();
+}
+function restore(json) {
+  doc = JSON.parse(json);
+  sel = sel.filter(id => doc.shapes.some(s => s.id === id));
+  autosave();
+  syncMatUI();
+  renderProps();
+  render();
+  checkOverlaps();
+  updateStats();
+}
+function undo() { if (histPos > 0) { histPos--; restore(history[histPos]); updateHistBtns(); } }
+function redo() { if (histPos < history.length - 1) { histPos++; restore(history[histPos]); updateHistBtns(); } }
+function updateHistBtns() {
+  $("btnUndo").disabled = histPos <= 0;
+  $("btnRedo").disabled = histPos >= history.length - 1;
+}
+function autosave() { try { localStorage.setItem("laserCadDoc1", docJSON()); } catch (e) {} }
+function commit() {
+  pushHistory();
+  autosave();
+  checkOverlaps();
+  renderProps();
+  render();
+}
+
+// ---------- ズーム ----------
+function fitView() {
+  const m = Math.max(doc.mat.w, doc.mat.h) * 0.07 + 4;
+  vb = { x: -m, y: -m, w: doc.mat.w + 2 * m, h: doc.mat.h + 2 * m };
+  render();
+}
+function zoomAt(f, wx, wy) {
+  const minW = Math.max(doc.mat.w, doc.mat.h) * 0.08;
+  const maxW = Math.max(doc.mat.w, doc.mat.h) * 3;
+  const nw = clamp(vb.w / f, minW, maxW);
+  const k = nw / vb.w;
+  vb = { x: wx - (wx - vb.x) * k, y: wy - (wy - vb.y) * k, w: vb.w * k, h: vb.h * k };
+  render();
+}
+
+// ---------- ヒットテスト ----------
+function hitShape(pt) {
+  for (let i = doc.shapes.length - 1; i >= 0; i--) {
+    if (pointInRings(pt[0], pt[1], worldRings(doc.shapes[i]))) return doc.shapes[i];
+  }
+  // 文字などの穴の内側クリック用に bbox でも拾う（選択済みは優先）
+  for (let i = doc.shapes.length - 1; i >= 0; i--) {
+    const s = doc.shapes[i];
+    if (s.type !== "text" && s.type !== "stamp" && s.type !== "free") continue;
+    const bb = shapeBBox(s);
+    if (pt[0] >= bb[0] && pt[0] <= bb[2] && pt[1] >= bb[1] && pt[1] <= bb[3]) return s;
+  }
+  return null;
+}
+function hitHandle(pt) {
+  if (sel.length !== 1) return -1;
+  const s = selShapes()[0];
+  const hp = handlePoints(s);
+  const r = 11 / viewScale();
+  for (let i = 0; i < hp.length; i++) {
+    if (Math.hypot(pt[0] - hp[i][0], pt[1] - hp[i][1]) <= r) return i;
+  }
+  return -1;
+}
+
+// ---------- マウス操作 ----------
+function initPointer() {
+  const wrap = $("svgWrap");
+  wrap.addEventListener("pointerdown", ev => {
+    if (ev.button === 1) { // 中ボタン＝パン
+      const pt = clientToWorld(ev);
+      drag = { kind: "pan", x0: pt[0], y0: pt[1] };
+      wrap.setPointerCapture(ev.pointerId);
+      ev.preventDefault();
+      return;
+    }
+    if (ev.button !== 0) return;
+    const pt = clientToWorld(ev);
+    const h = hitHandle(pt);
+    if (h >= 0) {
+      const s = selShapes()[0];
+      drag = h === 4
+        ? { kind: "rotate", s, rot0: s.rot || 0, a0: Math.atan2(pt[1] - s.y, pt[0] - s.x), changed: false }
+        : { kind: "scale", s, w0: s.w, h0: s.h, changed: false };
+      wrap.setPointerCapture(ev.pointerId);
+      return;
+    }
+    const hit = hitShape(pt);
+    if (hit) {
+      if (ev.shiftKey) {
+        sel = sel.includes(hit.id) ? sel.filter(i => i !== hit.id) : [...sel, hit.id];
+      } else if (!sel.includes(hit.id)) {
+        sel = [hit.id];
+      }
+      drag = {
+        kind: "move", x0: pt[0], y0: pt[1], changed: false,
+        starts: selShapes().map(s => ({ s, x: s.x, y: s.y })),
+        grab: hit,
+        grabBB: shapeBBox(hit), grabX: hit.x, grabY: hit.y,
+      };
+      wrap.setPointerCapture(ev.pointerId);
+      renderProps();
+      render();
+    } else {
+      if (!ev.shiftKey) { sel = []; renderProps(); }
+      drag = { kind: "rubber", x0: pt[0], y0: pt[1], x1: pt[0], y1: pt[1], add: ev.shiftKey };
+      wrap.setPointerCapture(ev.pointerId);
+      render();
+    }
+  });
+  wrap.addEventListener("pointermove", ev => {
+    if (!drag) return;
+    const pt = clientToWorld(ev);
+    if (drag.kind === "pan") {
+      vb.x -= pt[0] - drag.x0;
+      vb.y -= pt[1] - drag.y0;
+      render();
+      return;
+    }
+    if (drag.kind === "rubber") {
+      drag.x1 = pt[0]; drag.y1 = pt[1];
+      render();
+      return;
+    }
+    if (drag.kind === "move") {
+      const g = doc.grid;
+      let dx = pt[0] - drag.x0, dy = pt[1] - drag.y0;
+      // つかんだ図形のbbox左上がマス目に乗るようにスナップ
+      const bx = drag.grabBB[0] + dx, by = drag.grabBB[1] + dy;
+      dx += snapV(bx, g) - bx;
+      dy += snapV(by, g) - by;
+      for (const st of drag.starts) {
+        st.s.x = Math.round((st.x + dx) * 100) / 100;
+        st.s.y = Math.round((st.y + dy) * 100) / 100;
+      }
+      drag.changed = true;
+      render();
+      return;
+    }
+    if (drag.kind === "scale") {
+      const s = drag.s;
+      // マウスをローカル座標へ（回転を戻す）
+      const rad = -(s.rot || 0) * Math.PI / 180;
+      const mx = pt[0] - s.x, my = pt[1] - s.y;
+      const lx = mx * Math.cos(rad) - my * Math.sin(rad);
+      const ly = mx * Math.sin(rad) + my * Math.cos(rad);
+      let nw = clamp(Math.abs(lx) * 2, 2, 500);
+      let nh = clamp(Math.abs(ly) * 2, 2, 500);
+      nw = Math.round(nw); nh = Math.round(nh);
+      if (s.type === "text" || s.type === "stamp" || ev.shiftKey) {
+        // 縦横比を保つ（大きい方に合わせる）
+        const k = Math.max(nw / drag.w0, nh / drag.h0);
+        nw = Math.round(drag.w0 * k * 10) / 10;
+        nh = Math.round(drag.h0 * k * 10) / 10;
+      }
+      if (s.type === "hole") { nh = nw = Math.min(nw, nh); }
+      s.w = Math.max(1, nw); s.h = Math.max(1, nh);
+      if (s.type === "text") s.w = textW(s);
+      drag.changed = true;
+      render();
+      return;
+    }
+    if (drag.kind === "rotate") {
+      const s = drag.s;
+      const a = Math.atan2(pt[1] - s.y, pt[0] - s.x);
+      let deg = drag.rot0 + (a - drag.a0) * 180 / Math.PI;
+      deg = Math.round(deg / 15) * 15;
+      s.rot = ((deg % 360) + 360) % 360;
+      drag.changed = true;
+      render();
+      return;
+    }
+  });
+  const finish = ev => {
+    if (!drag) return;
+    if (drag.kind === "rubber") {
+      const x0 = Math.min(drag.x0, drag.x1), x1 = Math.max(drag.x0, drag.x1);
+      const y0 = Math.min(drag.y0, drag.y1), y1 = Math.max(drag.y0, drag.y1);
+      if (x1 - x0 > 0.5 || y1 - y0 > 0.5) {
+        const crossing = drag.x1 < drag.x0; // 左向きドラッグ＝触れたら選択
+        const rectRings = [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]];
+        const hits = doc.shapes.filter(s => {
+          const bb = shapeBBox(s);
+          if (!crossing) {
+            return bb[0] >= x0 && bb[2] <= x1 && bb[1] >= y0 && bb[3] <= y1;
+          }
+          if (bb[2] < x0 || bb[0] > x1 || bb[3] < y0 || bb[1] > y1) return false;
+          // 実際の輪郭が枠に触れているか（bboxだけだと星などで拾いすぎるため）
+          return boolop(rectRings, worldRings(s), INTERSECTION).length > 0;
+        }).map(s => s.id);
+        sel = drag.add ? [...new Set([...sel, ...hits])] : hits;
+      }
+      drag = null;
+      renderProps();
+      render();
+      return;
+    }
+    const changed = drag.changed;
+    drag = null;
+    if (changed) commit(); else render();
+  };
+  wrap.addEventListener("pointerup", finish);
+  wrap.addEventListener("pointercancel", finish);
+  wrap.addEventListener("wheel", ev => {
+    ev.preventDefault();
+    const pt = clientToWorld(ev);
+    zoomAt(ev.deltaY < 0 ? 1.18 : 1 / 1.18, pt[0], pt[1]);
+  }, { passive: false });
+  wrap.addEventListener("dblclick", ev => {
+    const hit = hitShape(clientToWorld(ev));
+    if (hit && hit.type === "text") {
+      sel = [hit.id];
+      renderProps();
+      render();
+      const ti = $("propText");
+      if (ti) { ti.focus(); ti.select(); }
+    }
+  });
+}
+function textW(s) {
+  const t = traceTextRings(s.text || "？");
+  return t ? Math.round(s.h * t.aspect * 10) / 10 : s.w;
+}
+// ============================================================
+// UI：図形追加・プロパティ・整列・ブール演算・書き出し
+// ============================================================
+const SHAPE_MENU = [
+  ["rect", "四角", `<rect x="4" y="6" width="18" height="14" rx="1" fill="none" stroke="#1b2733" stroke-width="2"/>`],
+  ["circle", "まる", `<circle cx="13" cy="13" r="9" fill="none" stroke="#1b2733" stroke-width="2"/>`],
+  ["tri", "三角", `<path d="M13 4 23 22H3Z" fill="none" stroke="#1b2733" stroke-width="2" stroke-linejoin="round"/>`],
+  ["poly", "多角形", `<path d="M13 3 22 9.5 18.6 21H7.4L4 9.5Z" fill="none" stroke="#1b2733" stroke-width="2" stroke-linejoin="round"/>`],
+  ["star", "星", `<path d="M13 3l2.9 6.2 6.8.8-5 4.6 1.3 6.7L13 18l-6 3.3 1.3-6.7-5-4.6 6.8-.8Z" fill="none" stroke="#1b2733" stroke-width="2" stroke-linejoin="round"/>`],
+  ["heart", "ハート", `<path d="M13 21C7 16 3.5 12.5 3.5 9A4.5 4.5 0 0 1 13 6.8 4.5 4.5 0 0 1 22.5 9c0 3.5-3.5 7-9.5 12Z" fill="none" stroke="#1b2733" stroke-width="2" stroke-linejoin="round"/>`],
+  ["text", "文字", `<text x="13" y="20" font-size="20" font-weight="900" text-anchor="middle" fill="#1b2733">あ</text>`],
+  ["hole", "穴", `<circle cx="13" cy="13" r="4.5" fill="none" stroke="#e11" stroke-width="2"/><path d="M13 3v4M13 19v4M3 13h4M19 13h4" stroke="#9aa7b2" stroke-width="1.6"/>`],
+];
+
+function newId() { return nextId++; }
+function defaultShape(type) {
+  const cx = doc.mat.w / 2, cy = doc.mat.h / 2;
+  const k = doc.shapes.length % 5;
+  const off = (k - 2) * 8;
+  const base = { id: newId(), type, x: cx + off, y: cy + off, rot: 0, mode: "cut" };
+  switch (type) {
+    case "rect": return { ...base, w: 40, h: 30, r: 0 };
+    case "circle": return { ...base, w: 35, h: 35 };
+    case "tri": return { ...base, w: 38, h: 34 };
+    case "poly": return { ...base, w: 38, h: 38, n: 6 };
+    case "star": return { ...base, w: 40, h: 40, n: 5, inner: 0.45 };
+    case "heart": return { ...base, w: 38, h: 34 };
+    case "text": {
+      const s = { ...base, mode: "eng", text: "なまえ", h: 12, w: 40 };
+      s.w = textW(s);
+      return s;
+    }
+    case "hole": return { ...base, w: 4, h: 4 };
+  }
+  return base;
+}
+function addShape(type) {
+  let s;
+  if (type === "hole") {
+    s = defaultShape("hole");
+    // 選択中の図形（または最後の図形）の上のほうに置く
+    const host = selShapes().find(t => t.type !== "hole") || [...doc.shapes].reverse().find(t => t.type !== "hole");
+    if (host) {
+      const bb = shapeBBox(host);
+      s.x = Math.round((bb[0] + bb[2]) / 2 * 10) / 10;
+      s.y = Math.round((bb[1] + 6) * 10) / 10;
+    }
+  } else {
+    s = defaultShape(type);
+  }
+  doc.shapes.push(s);
+  sel = [s.id];
+  commit();
+}
+function addStamp(sid) {
+  const st = STAMPS[sid];
+  if (!st) return;
+  const base = defaultShape("rect");
+  const size = 30;
+  const s = {
+    id: base.id, type: "stamp", sid, x: base.x, y: base.y, rot: 0, mode: "cut",
+    w: st.aspect >= 1 ? size : Math.round(size * st.aspect * 10) / 10,
+    h: st.aspect >= 1 ? Math.round(size / st.aspect * 10) / 10 : size,
+  };
+  doc.shapes.push(s);
+  sel = [s.id];
+  commit();
+}
+
+function buildShapeButtons() {
+  $("shapeBtns").innerHTML = SHAPE_MENU.map(([t, label, icon]) =>
+    `<button data-t="${t}"><svg viewBox="0 0 26 26">${icon}</svg>${label}</button>`).join("");
+  $("shapeBtns").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => addShape(b.dataset.t)));
+  $("stampBtns").innerHTML = Object.entries(STAMPS).map(([id, st]) => {
+    const d = ringsToPath(st.rings.map(r => r.map(([x, y]) => [x * 22 + 13, y * 22 + 13])), 2);
+    return `<button data-s="${id}" title="${st.label}"><svg viewBox="0 0 26 26"><path d="${d}" fill="#1b2733" fill-rule="evenodd"/></svg></button>`;
+  }).join("");
+  $("stampBtns").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => addStamp(b.dataset.s)));
+}
+
+// ---------- プロパティパネル ----------
+function numRow(id, label, val, min, max, step) {
+  return `<div class="grp"><label>${label}</label><input type="number" id="${id}" value="${val}" min="${min}" max="${max}" step="${step}"></div>`;
+}
+function renderProps() {
+  const box = $("propBox");
+  const ss = selShapes();
+  const zBtns = `
+    <div class="btngrid c4" style="margin-top:8px">
+      <button class="btn2" id="pDup">ふくせい</button>
+      <button class="btn2 warn" id="pDel">削除</button>
+      <button class="btn2" id="pFront">前面へ</button>
+      <button class="btn2" id="pBack">背面へ</button>
+    </div>`;
+  const modeSeg = (mode, disabled) => `
+    <div class="grp"><label>加工の種類</label>
+      <div class="seg modeSeg">
+        <button id="pModeCut" class="${mode === "cut" ? "cutOn" : ""}" ${disabled ? "disabled" : ""}>✂ カット（切る）</button>
+        <button id="pModeEng" class="${mode === "eng" ? "engOn" : ""}" ${disabled ? "disabled" : ""}>■ 彫刻（焼き付け）</button>
+      </div>
+    </div>`;
+  if (ss.length === 0) {
+    box.innerHTML = `<div id="selHint">図形をクリックすると、ここでサイズや角度を調整できます。<br>Shift+クリックで複数選択／ドラッグで移動。</div>`;
+    return;
+  }
+  if (ss.length > 1) {
+    const modes = new Set(ss.map(s => s.mode));
+    box.innerHTML = `<div class="hint" style="margin-bottom:8px">${ss.length}個 選択中</div>` +
+      modeSeg(modes.size === 1 ? ss[0].mode : "", ss.some(s => s.type === "hole")) + zBtns;
+    bindPropCommon();
+    return;
+  }
+  const s = ss[0];
+  let html = "";
+  const typeName = { rect: "四角", circle: "まる", tri: "三角", poly: "多角形", star: "星", heart: "ハート", text: "文字", stamp: "スタンプ", hole: "穴", free: "オリジナル図形" }[s.type] || s.type;
+  html += `<div class="hint" style="margin-bottom:8px">${typeName}${s.type === "stamp" && STAMPS[s.sid] ? "（" + STAMPS[s.sid].label + "）" : ""}</div>`;
+  if (s.type === "text") {
+    html += `<div class="grp"><label>文字（名前など）</label><input type="text" id="propText" value="${(s.text || "").replace(/"/g, "&quot;")}" maxlength="20"></div>`;
+    html += `<div class="dims2">` + numRow("pH", "文字の高さ mm", s.h, 4, 200, 1) + numRow("pRot", "角度 °", s.rot || 0, -180, 360, 15) + `</div>`;
+  } else if (s.type === "hole") {
+    html += `<div class="dims2">` + numRow("pW", "穴の直径 mm", s.w, 1, 20, 0.5) + `<div class="grp"><label>用途</label><div class="hint" style="margin-top:0">ボールチェーン用は φ4mm がおすすめ</div></div></div>`;
+  } else {
+    html += `<div class="dims2">` + numRow("pW", "よこ mm", s.w, 2, 500, 1) + numRow("pH", "たて mm", s.h, 2, 500, 1) + `</div>`;
+    html += `<div class="dims2">` + numRow("pRot", "角度 °", s.rot || 0, -180, 360, 15);
+    if (s.type === "rect") html += numRow("pR", "角の丸み mm", s.r || 0, 0, 100, 1);
+    else if (s.type === "poly") html += numRow("pN", "角の数", s.n || 6, 3, 12, 1);
+    else if (s.type === "star") html += numRow("pN", "とがりの数", s.n || 5, 3, 12, 1);
+    html += `</div>`;
+    if (s.type === "star") html += `<div class="grp"><label>とがり具合 <span class="val" id="pInnerV">${Math.round((s.inner || 0.45) * 100)}%</span></label><input type="range" id="pInner" min="15" max="85" value="${Math.round((s.inner || 0.45) * 100)}"></div>`;
+  }
+  html += `<div class="dims2">` + numRow("pX", "X（中心）mm", Math.round(s.x * 10) / 10, -100, 500, 1) + numRow("pY", "Y（中心）mm", Math.round(s.y * 10) / 10, -100, 500, 1) + `</div>`;
+  html += modeSeg(s.mode, s.type === "hole");
+  html += zBtns;
+  box.innerHTML = html;
+  // バインド
+  const bind = (id, fn) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener("input", () => { fn(el); render(); });
+    el.addEventListener("change", () => { fn(el); commit(); });
+  };
+  bind("pW", el => {
+    const v = clamp(+el.value || 2, 1, 500);
+    if (s.type === "hole") { s.w = s.h = v; }
+    else if (s.type === "stamp") { const k = v / s.w; s.w = v; s.h = Math.round(s.h * k * 10) / 10; }
+    else s.w = v;
+  });
+  bind("pH", el => {
+    const v = clamp(+el.value || 2, 1, 500);
+    if (s.type === "text") { s.h = v; s.w = textW(s); }
+    else if (s.type === "stamp") { const k = v / s.h; s.h = v; s.w = Math.round(s.w * k * 10) / 10; }
+    else s.h = v;
+  });
+  bind("pRot", el => { s.rot = ((+el.value % 360) + 360) % 360; });
+  bind("pX", el => { s.x = +el.value || 0; });
+  bind("pY", el => { s.y = +el.value || 0; });
+  bind("pR", el => { s.r = clamp(+el.value || 0, 0, 100); });
+  bind("pN", el => { s.n = clamp(Math.round(+el.value) || 3, 3, 12); });
+  bind("pInner", el => {
+    s.inner = clamp(+el.value, 15, 85) / 100;
+    const v = $("pInnerV");
+    if (v) v.textContent = Math.round(s.inner * 100) + "%";
+  });
+  const pt = $("propText");
+  if (pt) {
+    pt.addEventListener("input", () => { s.text = pt.value || "？"; s.w = textW(s); render(); });
+    pt.addEventListener("change", () => { s.text = pt.value || "？"; s.w = textW(s); commit(); });
+  }
+  bindPropCommon();
+}
+function bindPropCommon() {
+  const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
+  on("pModeCut", () => { selShapes().forEach(s => { if (s.type !== "hole") s.mode = "cut"; else s.mode = "cut"; }); commit(); });
+  on("pModeEng", () => { selShapes().forEach(s => { if (s.type !== "hole") s.mode = "eng"; }); commit(); });
+  on("pDup", duplicateSel);
+  on("pDel", deleteSel);
+  on("pFront", () => reorderSel(true));
+  on("pBack", () => reorderSel(false));
+}
+function duplicateSel() {
+  if (!sel.length) return;
+  const copies = selShapes().map(s => {
+    const c = JSON.parse(JSON.stringify(s, (k, v) => k.startsWith("_") ? undefined : v));
+    c.id = newId();
+    c.x += 8; c.y += 8;
+    return c;
+  });
+  doc.shapes.push(...copies);
+  sel = copies.map(c => c.id);
+  commit();
+}
+function deleteSel() {
+  if (!sel.length) return;
+  doc.shapes = doc.shapes.filter(s => !sel.includes(s.id));
+  sel = [];
+  commit();
+}
+function reorderSel(toFront) {
+  const picked = doc.shapes.filter(s => sel.includes(s.id));
+  const rest = doc.shapes.filter(s => !sel.includes(s.id));
+  doc.shapes = toFront ? [...rest, ...picked] : [...picked, ...rest];
+  commit();
+}
+
+// ---------- 合体・くり抜き ----------
+function makeFreeShape(rings, mode) {
+  const bb = ringsBBox(rings);
+  const cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2;
+  const rd = v => Math.round(v * 1000) / 1000;
+  return {
+    id: newId(), type: "free", mode,
+    x: rd(cx), y: rd(cy), rot: 0,
+    w: rd(bb[2] - bb[0]), h: rd(bb[3] - bb[1]),
+    bw: rd(bb[2] - bb[0]), bh: rd(bb[3] - bb[1]),
+    rings: rings.map(r => r.map(([x, y]) => [rd(x - cx), rd(y - cy)])),
+  };
+}
+function opUnion() {
+  const ss = selShapes();
+  if (ss.length < 2) { alert("合体したい図形を2つ以上選んでください（Shift+クリック）"); return; }
+  const res = unionAll(ss.map(worldRings));
+  if (!res.length) { alert("合体できませんでした"); return; }
+  const bottom = doc.shapes.find(s => sel.includes(s.id));
+  const idx = doc.shapes.indexOf(bottom);
+  const ns = makeFreeShape(res, bottom.mode);
+  doc.shapes = doc.shapes.filter(s => !sel.includes(s.id));
+  doc.shapes.splice(Math.min(idx, doc.shapes.length), 0, ns);
+  sel = [ns.id];
+  commit();
+}
+function opDiff() {
+  const ss = selShapes();
+  if (ss.length < 2) { alert("「のこす図形」と「くり抜く図形」を合わせて2つ以上選んでください"); return; }
+  const bottom = doc.shapes.find(s => sel.includes(s.id));
+  const others = ss.filter(s => s !== bottom);
+  const res = boolop(worldRings(bottom), unionAll(others.map(worldRings)), DIFFERENCE);
+  if (!res.length) { alert("くり抜いたら何も残りませんでした。図形の重ね方を確認してね"); return; }
+  const idx = doc.shapes.indexOf(bottom);
+  const ns = makeFreeShape(res, bottom.mode);
+  doc.shapes = doc.shapes.filter(s => !sel.includes(s.id));
+  doc.shapes.splice(Math.min(idx, doc.shapes.length), 0, ns);
+  sel = [ns.id];
+  commit();
+}
+
+// ---------- ならべる ----------
+function alignSel(op) {
+  const ss = selShapes();
+  if (op === "mat") {
+    if (!ss.length) return;
+    const bb = selBBox();
+    const dx = doc.mat.w / 2 - (bb[0] + bb[2]) / 2;
+    const dy = doc.mat.h / 2 - (bb[1] + bb[3]) / 2;
+    ss.forEach(s => { s.x += dx; s.y += dy; });
+    commit();
+    return;
+  }
+  if (op === "dx" || op === "dy") {
+    if (ss.length < 3) { alert("等間隔にするには3つ以上選んでください"); return; }
+    const axis = op === "dx" ? 0 : 1;
+    const sorted = [...ss].sort((a, b) => (axis ? a.y - b.y : a.x - b.x));
+    const cs = sorted.map(s => {
+      const bb = shapeBBox(s);
+      return (bb[axis] + bb[axis + 2]) / 2;
+    });
+    const first = cs[0], last = cs[cs.length - 1];
+    sorted.forEach((s, i) => {
+      const target = first + (last - first) * i / (sorted.length - 1);
+      if (axis) s.y += target - cs[i]; else s.x += target - cs[i];
+    });
+    commit();
+    return;
+  }
+  if (ss.length < 2) { alert("そろえたい図形を2つ以上選んでください"); return; }
+  const bb = selBBox();
+  ss.forEach(s => {
+    const b = shapeBBox(s);
+    if (op === "l") s.x += bb[0] - b[0];
+    if (op === "r") s.x += bb[2] - b[2];
+    if (op === "cx") s.x += (bb[0] + bb[2]) / 2 - (b[0] + b[2]) / 2;
+    if (op === "t") s.y += bb[1] - b[1];
+    if (op === "b") s.y += bb[3] - b[3];
+    if (op === "cy") s.y += (bb[1] + bb[3]) / 2 - (b[1] + b[3]) / 2;
+  });
+  commit();
+}
+
+// ---------- SVG 書き出し ----------
+function buildExportSVG() {
+  const W = doc.mat.w, H = doc.mat.h;
+  let eng = "", cut = "";
+  for (const s of doc.shapes) {
+    const d = ringsToPath(worldRings(s));
+    if (!d) continue;
+    if (s.mode === "eng") eng += `<path d="${d}" fill="#000000" fill-rule="evenodd"/>`;
+    else cut += `<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`;
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">` +
+    (eng ? `<g id="engrave">${eng}</g>` : "") +
+    (cut ? `<g id="cut">${cut}</g>` : "") +
+    `</svg>`;
+}
+function downloadSVG() {
+  if (!doc.shapes.length) { alert("まだ図形がありません。左の「図形をおく」から追加してね"); return; }
+  const name = ($("uname").value || "").trim();
+  const blob = new Blob([buildExportSVG()], { type: "image/svg+xml" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `レーザーCAD${name ? "_" + name : ""}.svg`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ---------- 作品コード ----------
+function encodeWork() {
+  const obj = {
+    v: 1,
+    name: ($("uname").value || "").trim(),
+    mat: doc.mat, grid: doc.grid,
+    shapes: JSON.parse(docJSON()).shapes,
+  };
+  return "LC1." + btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+}
+function decodeWork(str) {
+  try {
+    const i = (str || "").indexOf("LC1.");
+    if (i < 0) return { ok: false, msg: "「LC1.」で始まる作品コードを貼り付けてください" };
+    const obj = JSON.parse(decodeURIComponent(escape(atob(str.slice(i + 4).replace(/\s+/g, "")))));
+    if (!obj || !Array.isArray(obj.shapes)) return { ok: false, msg: "コードが壊れています" };
+    return { ok: true, obj };
+  } catch (e) {
+    return { ok: false, msg: "コードを読めませんでした（コピーもれに注意）" };
+  }
+}
+function applyWork(obj) {
+  doc = { mat: obj.mat || { w: 200, h: 150 }, grid: obj.grid != null ? obj.grid : 5, shapes: obj.shapes || [] };
+  doc.shapes.forEach(s => { s.id = newId(); });
+  sel = [];
+  if (obj.name) $("uname").value = obj.name;
+  syncMatUI();
+  commit();
+  fitView();
+}
+
+// ---------- 材料・マス目 UI ----------
+function syncMatUI() {
+  $("matW").value = doc.mat.w;
+  $("matH").value = doc.mat.h;
+  $("matWv").textContent = doc.mat.w + " mm";
+  $("matHv").textContent = doc.mat.h + " mm";
+  $("gridSeg").querySelectorAll("button").forEach(b =>
+    b.classList.toggle("on", +b.dataset.g === doc.grid));
+}
+
+// ---------- キーボード ----------
+function initKeys() {
+  window.addEventListener("keydown", ev => {
+    const tag = (ev.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+    const k = ev.key;
+    if ((ev.ctrlKey || ev.metaKey) && k.toLowerCase() === "z") { ev.preventDefault(); undo(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && k.toLowerCase() === "y") { ev.preventDefault(); redo(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && k.toLowerCase() === "d") { ev.preventDefault(); duplicateSel(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && k.toLowerCase() === "a") { ev.preventDefault(); sel = doc.shapes.map(s => s.id); renderProps(); render(); return; }
+    if (k === "Delete" || k === "Backspace") { ev.preventDefault(); deleteSel(); return; }
+    if (k === "Escape") { sel = []; renderProps(); render(); return; }
+    if (k.startsWith("Arrow") && sel.length) {
+      ev.preventDefault();
+      const step = ev.ctrlKey || ev.metaKey ? 0.1 : ev.shiftKey ? 10 : (doc.grid || 1);
+      const dx = k === "ArrowLeft" ? -step : k === "ArrowRight" ? step : 0;
+      const dy = k === "ArrowUp" ? -step : k === "ArrowDown" ? step : 0;
+      selShapes().forEach(s => { s.x += dx; s.y += dy; });
+      commit();
+    }
+  });
+}
+
+// ---------- 初期化 ----------
+function init() {
+  buildStamps();
+  buildShapeButtons();
+  initPointer();
+  initKeys();
+
+  $("opUnion").addEventListener("click", opUnion);
+  $("opDiff").addEventListener("click", opDiff);
+  $("alignBox").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => alignSel(b.dataset.al)));
+  $("btnSelAll").addEventListener("click", () => { sel = doc.shapes.map(s => s.id); renderProps(); render(); });
+  $("btnDeselect").addEventListener("click", () => { sel = []; renderProps(); render(); });
+  $("btnClear").addEventListener("click", () => {
+    if (!doc.shapes.length) return;
+    if (confirm("ぜんぶ消します。いいですか？（Ctrl+Z でもどせます）")) {
+      doc.shapes = []; sel = [];
+      commit();
+    }
+  });
+  $("btnUndo").addEventListener("click", undo);
+  $("btnRedo").addEventListener("click", redo);
+  $("btnZoomIn").addEventListener("click", () => zoomAt(1.3, vb.x + vb.w / 2, vb.y + vb.h / 2));
+  $("btnZoomOut").addEventListener("click", () => zoomAt(1 / 1.3, vb.x + vb.w / 2, vb.y + vb.h / 2));
+  $("btnZoomFit").addEventListener("click", fitView);
+  $("dl").addEventListener("click", downloadSVG);
+
+  $("matW").addEventListener("change", () => {
+    doc.mat.w = clamp(Math.round(+$("matW").value || 200), 20, 400);
+    syncMatUI(); commit(); fitView();
+  });
+  $("matH").addEventListener("change", () => {
+    doc.mat.h = clamp(Math.round(+$("matH").value || 150), 20, 415);
+    syncMatUI(); commit(); fitView();
+  });
+  $("gridSeg").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => { doc.grid = +b.dataset.g; syncMatUI(); commit(); }));
+
+  $("codeMake").addEventListener("click", () => {
+    $("codeOut").value = encodeWork();
+    $("codeMsg").className = "";
+    $("codeMsg").textContent = "コードを作りました。「コピー」して提出してね";
+  });
+  $("codeCopy").addEventListener("click", async () => {
+    if (!$("codeOut").value) $("codeOut").value = encodeWork();
+    $("codeOut").select();
+    try { await navigator.clipboard.writeText($("codeOut").value); } catch (e) { document.execCommand("copy"); }
+    $("codeMsg").className = "";
+    $("codeMsg").textContent = "コピーしました！";
+  });
+  $("codeLoad").addEventListener("click", () => {
+    const r = decodeWork($("codeIn").value);
+    const msg = $("codeMsg");
+    if (!r.ok) { msg.className = "err"; msg.textContent = r.msg; return; }
+    applyWork(r.obj);
+    msg.className = "";
+    msg.textContent = "よみこみました！（名前：" + (r.obj.name || "なし") + "）";
+  });
+
+  window.addEventListener("resize", render);
+
+  // 復元：URLハッシュ > 自動保存
+  let restored = false;
+  if (location.hash && location.hash.indexOf("LC1.") >= 0) {
+    const r = decodeWork(decodeURIComponent(location.hash));
+    if (r.ok) { applyWork(r.obj); restored = true; }
+  }
+  if (!restored) {
+    try {
+      const saved = localStorage.getItem("laserCadDoc1");
+      if (saved) {
+        const obj = JSON.parse(saved);
+        if (obj && Array.isArray(obj.shapes)) {
+          doc = obj;
+          doc.shapes.forEach(s => { s.id = newId(); });
+        }
+      }
+    } catch (e) {}
+  }
+  syncMatUI();
+  pushHistory();
+  renderProps();
+  fitView();
+  checkOverlaps();
+  updateStats();
+}
+init();
+</script>
+</body>
+</html>

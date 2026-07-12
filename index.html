@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ものづくり工房 — 入口</title>
+<style>
+  :root{
+    --ink:#1b2733;
+    --bg:#eef2f5;
+    --line:#d7dee5;
+    --orange:#ff6b35;
+    --orange-dk:#e35a27;
+    --teal:#0fa3a3;
+    --teal-dk:#0b8181;
+    --sub:#5d6b78;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;
+    background:var(--bg); color:var(--ink);
+    min-height:100vh; display:flex; flex-direction:column;
+  }
+  header{
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    padding:26px 18px 22px; background:var(--ink); color:#fff;
+  }
+  header .logo{
+    width:44px; height:44px; border-radius:12px;
+    background:linear-gradient(135deg, var(--orange) 0 50%, var(--teal) 50% 100%);
+    display:grid; place-items:center; font-weight:900; font-size:22px; color:#fff;
+  }
+  header h1{font-size:24px; font-weight:800; letter-spacing:.1em;}
+  header .tag{font-size:12px; color:#aebbc7; letter-spacing:.05em;}
+  main{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    padding:34px 20px; gap:26px; flex-wrap:wrap;
+  }
+  a.card{
+    display:block; width:340px; max-width:100%;
+    background:#fff; border-radius:20px; text-decoration:none; color:var(--ink);
+    border:3px solid var(--line); padding:28px 26px 24px;
+    transition:transform .12s, border-color .12s, box-shadow .12s;
+  }
+  a.card:hover{transform:translateY(-4px); box-shadow:0 10px 24px rgba(27,39,51,.14);}
+  a.card:focus-visible{outline:4px solid var(--ink); outline-offset:3px;}
+  a.card.gadget:hover{border-color:var(--orange);}
+  a.card.laser:hover{border-color:var(--teal);}
+  a.card.cad:hover{border-color:#2f7df6;}
+  .cad h2 .chip{background:#2f7df6;}
+  .cad .go{background:#2f7df6; box-shadow:0 4px 0 #1e5fc9;}
+  a.card.gcad:hover{border-color:#8e5bd6;}
+  .gcad h2 .chip{background:#8e5bd6;}
+  .gcad .go{background:#8e5bd6; box-shadow:0 4px 0 #6f41ad;}
+  .card .ico{font-size:46px; display:block; margin-bottom:10px;}
+  .card h2{font-size:21px; font-weight:800; margin-bottom:4px; display:flex; align-items:center; gap:8px;}
+  .card h2 .chip{
+    font-size:11px; font-weight:800; color:#fff; border-radius:999px; padding:3px 10px; letter-spacing:.06em;
+  }
+  .gadget h2 .chip{background:var(--orange);}
+  .laser h2 .chip{background:var(--teal);}
+  .card .desc{font-size:13px; color:var(--sub); line-height:1.8; margin-top:8px;}
+  .card .list{font-size:12px; color:var(--sub); line-height:1.9; margin-top:10px;}
+  .card .go{
+    margin-top:16px; text-align:center; font-size:14px; font-weight:800; color:#fff;
+    border-radius:999px; padding:11px 0; letter-spacing:.08em;
+  }
+  .gadget .go{background:var(--orange); box-shadow:0 4px 0 var(--orange-dk);}
+  .laser .go{background:var(--teal); box-shadow:0 4px 0 var(--teal-dk);}
+  footer{
+    padding:16px; text-align:center; font-size:11.5px; color:var(--sub);
+    border-top:1px solid var(--line); line-height:1.8;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">工</div>
+  <div>
+    <h1>ものづくり工房</h1>
+    <div class="tag">3Dプリンタ &amp; レーザー加工機 データジェネレーター</div>
+  </div>
+</header>
+<main>
+  <a class="card gadget" href="gadget-koubou.html">
+    <span class="ico">🔧</span>
+    <h2>ガジェット工房 <span class="chip">3Dプリンタ</span></h2>
+    <div class="desc">スライダーを動かすだけでSTLデータが作れる。Bambu A1 mini 用。</div>
+    <div class="list">
+      🔑 ネームキーホルダー ／ 🪐 遊星歯車 ／ 🎵 ホイッスル<br>
+      🌀 ハンドスピナー ／ ⛓️ ブレスレット ／ 📦 フタ付き小箱<br>
+      🦾 多関節アーム ／ 🚪 蝶番 ／ 🔩 ボルト&amp;ナット …全15種
+    </div>
+    <div class="go">つくりはじめる →</div>
+  </a>
+  <a class="card laser" href="laser-koubou.html">
+    <span class="ico">✂️</span>
+    <h2>レーザー工房 <span class="chip">レーザー加工機</span></h2>
+    <div class="desc">カット用SVGデータが作れる。Falcon2 Pro ＋ LightBurn 用。</div>
+    <div class="list">
+      📦 組み立てBOX ／ 🔷 多角形の箱 ／ 🎨 ドット絵<br>
+      ⚙️ 歯車 ／ 📱 スマホスタンド ／ 📚 ブックスタンド<br>
+      ☕ 写真コースター ／ 🏮 切り絵行灯 ／ 🗂️ 仕切りケース ／ 📏 定規＆分度器 …全10種
+    </div>
+    <div class="go">つくりはじめる →</div>
+  </a>
+  <a class="card gcad" href="gadget-cad.html">
+    <span class="ico">🧊</span>
+    <h2>ガジェットCAD <span class="chip">3Dプリンタ</span></h2>
+    <div class="desc">立体を自由に組み合わせてオリジナル作品を設計できる。Bambu A1 mini 用。</div>
+    <div class="list">
+      🧊 基本立体14種 ／ 🕳️ 穴でくり抜き ／ 🧩 グループ化<br>
+      ✏️ 名前の立体文字 ／ 📏 mm指定・マス目スナップ ／ 整列<br>
+      👀 完成プレビュー ／ 💾 STL書き出し ／ 作品コード提出つき
+    </div>
+    <div class="go">じゆうに設計する →</div>
+  </a>
+  <a class="card cad" href="laser-cad.html">
+    <span class="ico">📐</span>
+    <h2>レーザーCAD <span class="chip">レーザー加工機</span></h2>
+    <div class="desc">図形を自由に組み合わせてオリジナル作品を設計できる。Falcon2 Pro ＋ LightBurn 用。</div>
+    <div class="list">
+      ⬜ 基本図形＋⭐ かざりスタンプ12種 ／ 🔗 合体・✂ くり抜き<br>
+      ✏️ 名前の彫刻 ／ 🕳️ キーホルダー穴 ／ 📏 mm指定・マス目スナップ<br>
+      整列・等間隔ならべ ／ 作品コード提出つき
+    </div>
+    <div class="go">じゆうに設計する →</div>
+  </a>
+</main>
+<footer>
+  作品ができたら、左下の「📤 先生に送る（作品コード）」からコードをコピーして提出してね。<br>
+  先生はコードを貼り付けるだけで、同じ作品を再現して印刷・カットできます。
+</footer>
+</body>
+</html>

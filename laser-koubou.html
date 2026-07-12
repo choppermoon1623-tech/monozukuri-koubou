@@ -1,0 +1,2177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>レーザー工房 — ものづくりSVGジェネレーター</title>
+<style>
+  :root{
+    --ink:#1b2733;
+    --bg:#eef2f5;
+    --panel:#ffffff;
+    --line:#d7dee5;
+    --accent:#0fa3a3;      /* ティール = レーザー側ブランド */
+    --accent-dk:#0b8181;
+    --orange:#ff6b35;
+    --sub:#5d6b78;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;
+    background:var(--bg); color:var(--ink);
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  header{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 18px; background:var(--ink); color:#fff; flex:0 0 auto;
+  }
+  header .logo{
+    width:30px;height:30px;border-radius:8px;background:var(--accent);
+    display:grid;place-items:center;font-weight:900;font-size:16px;color:#fff;
+  }
+  header h1{font-size:16px; font-weight:800; letter-spacing:.08em;}
+  header .tag{font-size:11px; color:#aebbc7; letter-spacing:.05em;}
+  header a.sis{
+    margin-left:auto; color:#ffb08a; font-size:12px; font-weight:700; text-decoration:none;
+    border:1px solid #4a5a68; border-radius:999px; padding:5px 12px;
+  }
+  header a.sis:hover{background:#2a3947;}
+  #modeBar{
+    display:flex; flex-wrap:wrap; gap:8px; padding:8px 18px; background:#243240; flex:0 0 auto;
+  }
+  #modeBar button{
+    font-family:inherit; font-size:13px; font-weight:800; cursor:pointer;
+    padding:8px 18px; border-radius:999px; border:1px solid #46586a;
+    background:transparent; color:#aebbc7; letter-spacing:.03em;
+  }
+  #modeBar button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  main{flex:1 1 auto; display:flex; min-height:0;}
+  #panel{
+    width:340px; flex:0 0 auto; background:var(--panel);
+    border-right:1px solid var(--line);
+    display:flex; flex-direction:column; min-height:0;
+  }
+  #controls{flex:1; overflow-y:auto; padding:16px;}
+  .grp{margin-bottom:15px;}
+  .grp label{display:flex; justify-content:space-between; font-size:12.5px; font-weight:700; margin-bottom:5px;}
+  .grp label .val{color:var(--accent-dk); font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%; accent-color:var(--accent); height:26px; cursor:pointer;}
+  input[type=number], input[type=text]{
+    width:100%; padding:9px 12px; font-size:16px; font-weight:700;
+    border:2px solid var(--line); border-radius:10px; font-family:inherit;
+  }
+  input[type=number]:focus, input[type=text]:focus{outline:none; border-color:var(--accent);}
+  .dims3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+  .dims3 .grp{margin-bottom:0;}
+  .hint{font-size:11px; color:var(--sub); margin-top:5px; line-height:1.6;}
+  .seg{display:flex; gap:6px;}
+  .seg button{
+    flex:1; padding:8px 0; font-size:12px; font-weight:700; font-family:inherit;
+    border:2px solid var(--line); border-radius:9px; background:#fff; color:var(--sub); cursor:pointer;
+  }
+  .seg button.on{border-color:var(--accent); color:var(--ink); background:#f0fafa;}
+  .sec-title{
+    font-size:11px; font-weight:800; letter-spacing:.14em; color:var(--sub);
+    margin:16px 0 8px; text-transform:uppercase;
+  }
+  .btnrow{display:flex; gap:6px;}
+  .btn2{
+    flex:1; padding:9px 0; font-size:12px; font-weight:700; font-family:inherit;
+    border:2px solid var(--line); border-radius:9px; background:#fff; color:var(--ink); cursor:pointer;
+  }
+  .btn2:hover{border-color:var(--accent); background:#f0fafa;}
+  #stage{flex:1; position:relative; min-width:0; display:grid; place-items:center; padding:20px; overflow:hidden;}
+  #svgWrap{width:100%; height:100%; min-width:0; min-height:0; display:grid; place-items:center; touch-action:none; overflow:hidden;}
+  #svgWrap svg{width:100%; height:100%;}
+  #bedNote{
+    position:absolute; right:14px; top:12px;
+    background:rgba(255,255,255,.85); border:1px solid var(--line); border-radius:10px;
+    padding:6px 10px; font-size:11px; color:var(--sub); pointer-events:none;
+  }
+  footer{
+    flex:0 0 auto; display:flex; align-items:center; gap:14px;
+    padding:12px 18px; background:var(--panel); border-top:1px solid var(--line);
+  }
+  #stats{font-size:12px; color:var(--sub); line-height:1.5;}
+  #stats .warn{color:#c0392b; font-weight:700;}
+  #dl{
+    margin-left:auto; border:none; cursor:pointer; font-family:inherit;
+    background:var(--accent); color:#fff; font-size:15px; font-weight:800;
+    padding:13px 26px; border-radius:999px; letter-spacing:.05em;
+    box-shadow:0 4px 0 var(--accent-dk); transition:transform .08s, box-shadow .08s;
+  }
+  #dl:hover{filter:brightness(1.05);}
+  #dl:active{transform:translateY(3px); box-shadow:0 1px 0 var(--accent-dk);}
+  /* ---- 作品コード（提出用） ---- */
+  #shareBox{
+    flex:0 0 auto; border-top:1px solid var(--line);
+    padding:0 16px 12px; background:#f7fafb;
+  }
+  #shareBox summary{
+    cursor:pointer; list-style:none; padding:11px 0 9px;
+    font-size:11px; font-weight:800; letter-spacing:.12em; color:var(--sub);
+    user-select:none;
+  }
+  #shareBox summary::before{content:"▸ "; color:var(--accent);}
+  #shareBox[open] summary::before{content:"▾ ";}
+  #shareBox summary::-webkit-details-marker{display:none;}
+  #shareBox summary:hover{color:var(--ink);}
+  #shareBox input[type=text]{font-size:13px; padding:8px 10px; font-weight:600;}
+  .shareRow{display:flex; gap:6px; margin:7px 0 0;}
+  .shareRow input{flex:1; min-width:0;}
+  .shareRow button{
+    flex:0 0 auto; padding:8px 12px; font-size:12px; font-weight:800; font-family:inherit;
+    border:2px solid var(--accent); border-radius:9px; background:#f0fafa; color:var(--ink); cursor:pointer;
+  }
+  .shareRow button:hover{background:#dff2f2;}
+  #copyCode{width:100%;}
+  #shareMsg{font-weight:700; color:var(--accent-dk); min-height:15px; font-size:11px; margin-top:6px;}
+  @media (max-width:760px){
+    body{overflow:auto; height:auto;}
+    main{flex-direction:column;}
+    #panel{width:100%; border-right:none; border-bottom:1px solid var(--line);}
+    #stage{height:52vh;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">切</div>
+  <h1>レーザー工房</h1>
+  <span class="tag">ものづくり SVG ジェネレーター</span>
+  <a class="sis" href="laser-cad.html" style="margin-left:auto">📐 じゆう設計はレーザーCADへ →</a>
+  <a class="sis" href="gadget-koubou.html" style="margin-left:0">🔧 3Dプリンタ版はこちら →</a>
+</header>
+<nav id="modeBar">
+  <button data-m="box" class="on">📦 組み立てBOX</button>
+  <button data-m="poly">🔷 多角形の箱</button>
+  <button data-m="dot">🎨 ドット絵キーホルダー</button>
+  <button data-m="gear">⚙️ 歯車おもちゃ</button>
+  <button data-m="stand">📱 スマホスタンド</button>
+  <button data-m="book">📚 ブックスタンド</button>
+  <button data-m="coaster">☕ 写真コースター</button>
+  <button data-m="andon">🏮 切り絵行灯</button>
+  <button data-m="tray">🗂️ 仕切りケース</button>
+  <button data-m="ruler">📏 定規＆分度器</button>
+</nav>
+<main>
+  <div id="panel">
+    <div id="controls">
+
+      <!-- ============ 箱モード ============ -->
+      <div id="boxControls">
+        <div class="sec-title">寸法の基準</div>
+        <div class="grp">
+          <div class="seg" id="refSeg">
+            <button data-v="outer" class="on">外寸で指定</button>
+            <button data-v="inner">内寸で指定</button>
+          </div>
+        </div>
+        <div class="sec-title">箱のサイズ（mm）</div>
+        <div class="dims3">
+          <div class="grp"><label>幅 X</label><input type="number" id="inX" value="100" min="20" max="380" step="1"></div>
+          <div class="grp"><label>奥行 Y</label><input type="number" id="inY" value="70" min="20" max="380" step="1"></div>
+          <div class="grp"><label>高さ Z</label><input type="number" id="inZ" value="50" min="15" max="380" step="1"></div>
+        </div>
+        <div class="sec-title">材料とカット</div>
+        <div id="sliders"></div>
+        <div class="sec-title">フタ</div>
+        <div class="grp">
+          <div class="seg" id="lidSeg">
+            <button data-v="none" class="on">なし（上が開いた箱）</button>
+            <button data-v="closed">あり（6面の閉じ箱）</button>
+          </div>
+          <div class="hint">「あり」は6面すべて組んで接着する閉じ箱です。あとでフタとして切り離す小物ケースの土台にも。</div>
+        </div>
+        <div class="hint" style="margin-top:14px">
+          ★カーフ補正込みで、タブとみぞがぴったり圧入で組み上がる設計です。<b>初回は必ず端材で小さい箱をテストカット</b>して、はまり具合でカーフ値を微調整してください（きつい→カーフを小さく／ゆるい→大きく）。
+        </div>
+      </div>
+
+      <!-- ============ ドット絵モード ============ -->
+      <div id="dotControls" style="display:none">
+        <div class="sec-title">かく道具（プレビューに直接かけます）</div>
+        <div class="grp">
+          <div class="seg" id="toolSeg">
+            <button data-v="pen" class="on">✏️ ペン</button>
+            <button data-v="eraser">🧽 けしゴム</button>
+            <button data-v="text">🔤 文字</button>
+          </div>
+        </div>
+        <div class="grp" id="textGrp" style="display:none">
+          <label>スタンプする文字</label>
+          <input type="text" id="stampText" placeholder="れい：ハルト / RIKO / 1ねん">
+          <div class="hint">文字を入れてからキャンバスをクリックすると、その位置に文字がドットで押されます。ひらがなはカタカナに変換。゛゜は1マスぶん右に付きます。♥ ★ も使えます。</div>
+        </div>
+        <div class="grp">
+          <div class="seg" id="mirrorSeg">
+            <button data-v="off" class="on">ふつうに描く</button>
+            <button data-v="on">🦋 左右対称モード</button>
+          </div>
+        </div>
+        <div class="grp btnrow">
+          <button class="btn2" id="undoBtn">↩ もどす</button>
+          <button class="btn2" id="invBtn">◧ 白黒反転</button>
+          <button class="btn2" id="clearBtn">🗑 全消し</button>
+        </div>
+        <div class="sec-title">キャンバスとサイズ</div>
+        <div id="dotSliders"></div>
+        <div class="sec-title">ストラップ穴</div>
+        <div class="grp">
+          <div class="seg" id="holeSeg">
+            <button data-v="on" class="on">あり（上に耳を追加）</button>
+            <button data-v="off">なし</button>
+          </div>
+        </div>
+        <div id="holeSlider"></div>
+        <div class="sec-title">作り方</div>
+        <div class="grp">
+          <div class="seg" id="outSeg">
+            <button data-v="engrave" class="on">🔥 彫刻タグ</button>
+            <button data-v="stencil">✂ ステンシル</button>
+          </div>
+          <div class="hint" id="outHint"></div>
+        </div>
+        <div class="hint" style="margin-top:14px">
+          ★描いた絵はこのパソコンに自動保存されます（ページを閉じても残ります）。
+        </div>
+      </div>
+
+      <!-- ============ 歯車モード ============ -->
+      <div id="gearControls" style="display:none">
+        <div class="sec-title">歯車のデザイン</div>
+        <div id="gearSliders"></div>
+        <div class="grp">
+          <label>3枚目の歯車</label>
+          <div class="seg" id="thirdSeg">
+            <button data-v="off" class="on">なし（2枚）</button>
+            <button data-v="on">あり（3枚つなぎ）</button>
+          </div>
+        </div>
+        <div class="grp">
+          <label>回すハンドル円盤</label>
+          <div class="seg" id="crankSeg">
+            <button data-v="on" class="on">あり</button>
+            <button data-v="off">なし</button>
+          </div>
+          <div class="hint">いちばん小さい歯車に重ねてボルト止めすると、クルクル回すハンドルになります。</div>
+        </div>
+        <div class="sec-title">軸と精度</div>
+        <div id="gearSliders2"></div>
+        <div class="hint" style="margin-top:14px">
+          ★組み立て：土台の穴にM4ボルトを通し、ワッシャー→歯車→ナット（ゆるめ）の順で止めると軽く回ります。
+          歯数を変えると回る速さが変わるのが実験ポイント！ きつい時は「あそび」を大きくして切り直します。
+        </div>
+      </div>
+
+      <!-- ============ 仕切りケースモード ============ -->
+      <div id="trayControls" style="display:none">
+        <div class="sec-title">ケースのサイズ（外寸mm・フタなし）</div>
+        <div id="traySliders"></div>
+        <div class="sec-title">仕切りのデザイン</div>
+        <div id="traySliders2"></div>
+        <div class="sec-title">名前を入れる（前面に彫刻）</div>
+        <div class="grp">
+          <input type="text" id="trayName" placeholder="れい：ハルト / ビーズ / ネジ M4">
+          <div class="hint">空欄なら彫刻なし。中に入れる物の名前を入れてもOK。</div>
+        </div>
+        <div class="sec-title">材料とカット</div>
+        <div id="traySliders3"></div>
+        <div class="hint" style="margin-top:14px">
+          ★組み立て：箱を接着 → 仕切りどうしを十字に組む → 上から落とし込むだけ（接着してもOK）。
+          文房具トレイ・ネジの整理・アクセサリー入れなど、部屋数を変えて自分の道具に合わせられます。
+        </div>
+      </div>
+
+      <!-- ============ 定規＆分度器モード ============ -->
+      <div id="rulerControls" style="display:none">
+        <div class="sec-title">つくる道具</div>
+        <div class="grp">
+          <div class="seg" id="rulerKindSeg">
+            <button data-v="line" class="on">📏 直線定規</button>
+            <button data-v="prot">📐 分度器</button>
+          </div>
+        </div>
+        <div class="sec-title">サイズ</div>
+        <div id="rulerSliders"></div>
+        <div class="grp">
+          <label>ぶら下げ穴（直線定規のみ）</label>
+          <div class="seg" id="rulerHoleSeg">
+            <button data-v="on" class="on">あり</button>
+            <button data-v="off">なし</button>
+          </div>
+        </div>
+        <div class="sec-title">名前を入れる（彫刻）</div>
+        <div class="grp">
+          <input type="text" id="rulerName" placeholder="れい：1-3 ハルト">
+        </div>
+        <div class="hint" style="margin-top:14px">
+          ★目もりと数字は彫刻（黒）です。LightBurnで黒レイヤーを「Fill」にしてください。
+          カーフのぶん外形が約0.1mm小さくなりますが、学校で使うぶんには十分な精度です。
+        </div>
+      </div>
+
+      <!-- ============ スマホスタンドモード ============ -->
+      <div id="standControls" style="display:none">
+        <div class="sec-title">スタンドのデザイン</div>
+        <div id="standSliders"></div>
+        <div class="sec-title">名前を入れる（彫刻）</div>
+        <div class="grp">
+          <input type="text" id="standName" placeholder="れい：ハルト / 1-3 RIKO">
+          <div class="hint">正面のバーにドット文字で彫刻されます。空欄なら彫刻なし。</div>
+        </div>
+        <div class="sec-title">材料とカット</div>
+        <div id="standSliders2"></div>
+        <div class="hint" style="margin-top:14px">
+          ★組み立て：横板2枚のみぞに、バー2本のツメを差し込むだけ（きつめ圧入）。
+          「スタンドの幅」は<b>スマホの横幅より2cmくらい狭く</b>すると両側のレールに乗ります。
+        </div>
+      </div>
+
+      <!-- ============ 多角形の箱モード ============ -->
+      <div id="polyControls" style="display:none">
+        <div class="sec-title">かたち</div>
+        <div id="polySliders"></div>
+        <div class="grp">
+          <label>上のふち枠（リング）</label>
+          <div class="seg" id="ringSeg">
+            <button data-v="on" class="on">あり（はめて固定）</button>
+            <button data-v="off">なし</button>
+          </div>
+          <div class="hint">リングを上からはめると、接着なしでも壁がしっかり固定されます。「なし」の場合は角を木工ボンドで接着してください。</div>
+        </div>
+        <div class="sec-title">名前を入れる（彫刻）</div>
+        <div class="grp">
+          <input type="text" id="polyName" placeholder="れい：ハルト / えんぴつ">
+          <div class="hint">1枚目の壁に彫刻されます。空欄なら彫刻なし。</div>
+        </div>
+        <div class="sec-title">材料とカット</div>
+        <div id="polySliders2"></div>
+        <div class="hint" style="margin-top:14px">
+          ★組み立て：底板のほぞ穴に壁のツメを差し込み → リングを上からはめるだけ。
+          壁どうしの角に小さなすき間が見えるのは多角形箱の仕様です（気になる時はボンドを少量）。
+          ペン立て・小物入れ・花器カバーに。六角形のペン立てが定番人気！
+        </div>
+      </div>
+
+      <!-- ============ 本立て（クロス差し込み型）モード ============ -->
+      <div id="bookControls" style="display:none">
+        <div class="sec-title">本立てのサイズ（mm）</div>
+        <div id="bookSliders"></div>
+        <div class="sec-title">材料とカット</div>
+        <div id="bookSliders2"></div>
+        <div class="hint" style="margin-top:14px">
+          ★写真と同じ、板2枚を十字（クロス）に差し込む本・タブレットスタンド。
+          同じ形のプレート2枚（片方は下から・片方は上からの縦スロット付き）を直交にカチッと差し込むだけ（接着不要）。
+          差し込みが深いのでグラつかず丈夫です。前のリップが本止め、斜めの上辺が背もたれになります。
+          「かたむき」は 高さを上げる／奥行きを縮めると立ってきます。厚い本・タブレットは奥行き大きめが安定。
+        </div>
+      </div>
+
+      <!-- ============ 写真コースターモード ============ -->
+      <div id="coasterControls" style="display:none">
+        <div class="sec-title">画像をえらぶ</div>
+        <div class="grp">
+          <input type="file" id="coasterFile" accept="image/*">
+          <div class="hint">写真やイラストを選ぶと、レーザーで焼ける白黒（点々／グレー）に変換してプレビューします。顔・ペット・ロゴなど何でもOK。</div>
+        </div>
+        <div class="sec-title">かたち・大きさ</div>
+        <div class="grp">
+          <div class="seg" id="coasterShapeSeg">
+            <button data-v="circle" class="on">丸</button>
+            <button data-v="rounded">角丸</button>
+            <button data-v="square">四角</button>
+            <button data-v="hex">六角</button>
+          </div>
+        </div>
+        <div id="coasterSliders"></div>
+        <div class="sec-title">焼き付けの調整</div>
+        <div class="grp">
+          <div class="seg" id="coasterModeSeg">
+            <button data-v="dither" class="on">点々（写真向き）</button>
+            <button data-v="gray">グレー</button>
+          </div>
+          <div class="hint">ダイオードレーザーは「点々（ディザ）」がきれいに出ます。文字やロゴなどベタっとした絵は「グレー」でも。</div>
+        </div>
+        <div id="coasterSliders2"></div>
+        <div class="grp">
+          <label>白黒の反転（黒い素材・アクリル用）</label>
+          <div class="seg" id="coasterInvSeg">
+            <button data-v="off" class="on">ふつう（木など）</button>
+            <button data-v="on">反転</button>
+          </div>
+        </div>
+        <div class="grp">
+          <label>ふち（焼かない余白）</label>
+          <div class="seg" id="coasterBorderSeg">
+            <button data-v="on" class="on">あり</button>
+            <button data-v="off">なし（ふちまで焼く）</button>
+          </div>
+        </div>
+        <div class="sec-title">材料とカット</div>
+        <div id="coasterSliders3"></div>
+        <div class="hint" style="margin-top:14px">
+          ★書き出したSVGを LightBurn に読み込むと、外形＝赤カット、写真＝画像レイヤーになります。
+          画像を選んで「Image」モードに（点々で作った場合は Image Mode を <b>Threshold</b>／グレーは <b>Grayscale</b> か <b>Jarvis</b>）、
+          外形は Line でカット。木・革・竹・MDF・コルクにおすすめ。まず端材で試し焼きして出力を合わせてください。
+          ※写真は作品コードには入りません（コースターはSVGファイルを提出してください）。
+        </div>
+      </div>
+
+      <!-- ============ 切り絵行灯モード ============ -->
+      <div id="andonControls" style="display:none">
+        <div class="sec-title">下絵の画像をえらぶ</div>
+        <div class="grp">
+          <input type="file" id="andonFile" accept="image/*">
+          <div class="hint">写真・イラスト・ロゴなどを選ぶと、黒い厚紙で切り抜ける切り絵（バラけない連結1枚）に変換します。人物・動物・校章・文字など、線がはっきりした絵ほどきれいに出ます。</div>
+        </div>
+        <div class="sec-title">面の大きさ（よこ×たて・比率自由）・白黒</div>
+        <div id="andonSliders"></div>
+        <div class="grp">
+          <label>白黒の反転</label>
+          <div class="seg" id="andonInvSeg">
+            <button data-v="off" class="on">暗い所を残す</button>
+            <button data-v="on">明るい所を残す</button>
+          </div>
+          <div class="hint">残す＝黒（光を通さない部分）。仕上がりを見て、絵の主役が黒く残る方を選んでください。</div>
+        </div>
+        <div class="sec-title">切り絵として成立させる調整</div>
+        <div id="andonSliders2"></div>
+        <div class="hint">「ノイズ除去」で小さな点を消し、「橋の太さ」で離れ小島を自動的に橋でつなぎます。「なめらかさ」で極端に細い線を太らせます。</div>
+        <div class="sec-title">ふち枠・材料</div>
+        <div id="andonSliders3"></div>
+        <div class="grp btnrow">
+          <button class="btn2" id="andonJpg">🖼 JPEG（下絵）で保存</button>
+        </div>
+        <div class="hint" style="margin-top:14px">
+          ★黒い厚紙を切り抜く切り絵の「面」を作ります。黒＝残す（すべてつながって1枚に）、白＝切り抜く穴（光がぬける）。
+          外周の「のりしろ枠」を残しておくと、その余白を自分で作った行灯の枠に貼り付けられます（枠は別で用意）。
+          よこ×たての比率は自由。SVGを LightBurn でカット（赤線）、JPEGは下絵・確認用（黒白）です。
+          裏に和紙や障子紙を貼ってLEDを入れると光ります。まず端材＋低出力で試し切りを。
+          ※画像は作品コードには入りません（SVG/JPEGを提出）。
+        </div>
+      </div>
+
+    </div>
+    <details id="shareBox">
+      <summary>📤 先生に送る（作品コード）</summary>
+      <input type="text" id="authorIn" placeholder="なまえ・出席番号" maxlength="20">
+      <div class="shareRow"><button id="copyCode">📋 作品コードをコピー</button></div>
+      <div class="shareRow">
+        <input type="text" id="codeIn" placeholder="コードを貼り付けて復元 →">
+        <button id="loadBtn">読込</button>
+      </div>
+      <div id="shareMsg"></div>
+      <div class="hint">コピーしたコードを Classroom・Forms・チャットに貼って提出。先生はここに貼り付ければ同じ作品（ドット絵も含む）を再現してSVG保存できます。</div>
+    </details>
+  </div>
+  <div id="stage">
+    <div id="svgWrap"></div>
+    <div id="bedNote">外枠 = Falcon2 Pro 作業エリア（400×415mm）※書き出しSVGには含まれません</div>
+  </div>
+</main>
+<footer>
+  <div id="stats"></div>
+  <button id="dl">⬇ SVGをダウンロード</button>
+</footer>
+
+<script>
+"use strict";
+/* =========================================================
+   レーザー工房 v2
+   - 📦 フィンガージョイント箱（カーフ補正付き）
+   - 🎨 ドット絵キーホルダー／ステンシル
+   単位: 1 user unit = 1mm（SVGはmm実寸で書き出し）
+========================================================= */
+const BED = { w: 400, h: 415 };   // Falcon2 Pro
+const MARGIN = 4, GAP = 4;
+
+const app = { mode: "box" };
+
+/* ==================================================================
+   📦 箱モード（v1のまま）
+================================================================== */
+const state = {
+  ref: "outer",
+  X: 100, Y: 70, Z: 50,
+  t: 3, kerf: 0.15, finger: 12,
+  lid: "none",
+};
+
+// ---------- フィンガージョイントの切欠き計算（検証済みロジック） ----------
+function fingerCuts(L, t, f, male, k){
+  let n = Math.round(L / f);
+  if (n % 2 === 0) n += 1;
+  n = Math.max(3, n);
+  let s = L / n;
+  while (s < Math.max(3, t * 1.2) && n > 3){ n -= 2; s = L / n; }
+  const cuts = [];
+  for (let i = 0; i < n; i++){
+    const isCut = male ? (i % 2 === 1) : (i % 2 === 0);
+    if (!isCut) continue;
+    const a = Math.max(0, i * s + k / 2);
+    const b = Math.min(L, (i + 1) * s - k / 2);
+    if (b > a) cuts.push([a, b]);
+  }
+  return cuts;
+}
+
+// ---------- パネル外形パス生成 ----------
+// edges: [bottom, right, top, left]  各 "flat" | "male" | "female"
+function panelPath(w, h, edges, t, f, k){
+  const corners = [[0, h], [w, h], [w, 0], [0, 0]];
+  const dirs =    [[1, 0], [0, -1], [-1, 0], [0, 1]];
+  const inns =    [[0, -1], [-1, 0], [0, 1], [1, 0]];
+  const lens = [w, h, w, h];
+  let d = "M0 " + h;
+  for (let e = 0; e < 4; e++){
+    const type = edges[e];
+    const [cx, cy] = corners[e];
+    const [dx, dy] = dirs[e];
+    const [ix, iy] = inns[e];
+    const L = lens[e];
+    if (type === "flat"){
+      d += " L" + (cx + dx * L).toFixed(3) + " " + (cy + dy * L).toFixed(3);
+      continue;
+    }
+    const cuts = fingerCuts(L, t, f, type === "male", k);
+    for (const [a, b] of cuts){
+      d += " L" + (cx + dx * a).toFixed(3) + " " + (cy + dy * a).toFixed(3);
+      d += " L" + (cx + dx * a + ix * t).toFixed(3) + " " + (cy + dy * a + iy * t).toFixed(3);
+      d += " L" + (cx + dx * b + ix * t).toFixed(3) + " " + (cy + dy * b + iy * t).toFixed(3);
+      d += " L" + (cx + dx * b).toFixed(3) + " " + (cy + dy * b).toFixed(3);
+    }
+    d += " L" + (cx + dx * L).toFixed(3) + " " + (cy + dy * L).toFixed(3);
+  }
+  return d + " Z";
+}
+
+function makePanels(){
+  const t = state.t, f = state.finger, k = state.kerf;
+  let X = state.X, Y = state.Y, Z = state.Z;
+  if (state.ref === "inner"){
+    X += 2 * t;
+    Y += 2 * t;
+    Z += t + (state.lid === "closed" ? t : 0);
+  }
+  const topEdge = state.lid === "closed" ? "female" : "flat";
+  const panels = [
+    { name: "前", w: X, h: Z, edges: ["female", "male", topEdge, "male"] },
+    { name: "後", w: X, h: Z, edges: ["female", "male", topEdge, "male"] },
+    { name: "左", w: Y, h: Z, edges: ["female", "female", topEdge, "female"] },
+    { name: "右", w: Y, h: Z, edges: ["female", "female", topEdge, "female"] },
+    { name: "底", w: X, h: Y, edges: ["male", "male", "male", "male"] },
+  ];
+  if (state.lid === "closed"){
+    panels.push({ name: "蓋", w: X, h: Y, edges: ["male", "male", "male", "male"] });
+  }
+  return panels.map(p => ({ ...p, path: panelPath(p.w, p.h, p.edges, t, f, k) }));
+}
+
+function layoutPanels(panels){
+  let x = MARGIN, y = MARGIN, rowH = 0, maxX = 0, maxY = 0;
+  for (const p of panels){
+    if (x + p.w > BED.w - MARGIN && x > MARGIN){
+      x = MARGIN;
+      y += rowH + GAP;
+      rowH = 0;
+    }
+    p.x = x; p.y = y;
+    x += p.w + GAP;
+    rowH = Math.max(rowH, p.h);
+    maxX = Math.max(maxX, p.x + p.w);
+    maxY = Math.max(maxY, p.y + p.h);
+  }
+  return { w: maxX + MARGIN, h: maxY + MARGIN };
+}
+
+function renderBox(){
+  const panels = makePanels();
+  const ext = layoutPanels(panels);
+  const over = ext.w > BED.w || ext.h > BED.h;
+
+  let inner = "";
+  for (const p of panels){
+    inner += `<g transform="translate(${p.x},${p.y})">` +
+      `<path d="${p.path}" fill="rgba(15,163,163,0.08)" stroke="#e11" stroke-width="0.4"/>` +
+      `<text x="${p.w/2}" y="${p.h/2}" font-size="${Math.min(10, p.h*0.3)}" fill="#5d6b78" text-anchor="middle" dominant-baseline="middle" font-weight="700">${p.name} ${p.w.toFixed(0)}×${p.h.toFixed(0)}</text>` +
+      `</g>`;
+  }
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 ${BED.w + 4} ${BED.h + 4}">` +
+    `<rect x="0" y="0" width="${BED.w}" height="${BED.h}" fill="#fff" stroke="#9fb4c4" stroke-width="0.8" stroke-dasharray="4 3"/>` +
+    inner + `</svg>`;
+  document.getElementById("svgWrap").innerHTML = svg;
+
+  document.getElementById("stats").innerHTML =
+    "パネル: " + panels.length + "枚 ／ 配置サイズ: <b>" + ext.w.toFixed(0) + " × " + ext.h.toFixed(0) + " mm</b>" +
+    (over ? " <span class='warn'>⚠ 作業エリア(400×415)を超えています</span>" : "") +
+    "<br>板厚 " + state.t + "mm ／ カーフ " + state.kerf + "mm 補正済み ／ LightBurnにドラッグ＆ドロップ";
+}
+
+function downloadBox(){
+  const panels = makePanels();
+  const ext = layoutPanels(panels);
+  let inner = "";
+  for (const p of panels){
+    inner += `<g transform="translate(${p.x},${p.y})"><path d="${p.path}" fill="none" stroke="#ff0000" stroke-width="0.1"/></g>`;
+  }
+  const svg =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${ext.w}mm" height="${ext.h}mm" viewBox="0 0 ${ext.w} ${ext.h}">\n` +
+    inner + `\n</svg>`;
+  const dims = state.X + "x" + state.Y + "x" + state.Z;
+  saveSVG(svg, "box_" + dims + "_t" + state.t + "_k" + state.kerf + (state.lid === "closed" ? "_lid" : "") + ".svg");
+}
+
+/* ==================================================================
+   🎨 ドット絵キーホルダー／ステンシル
+================================================================== */
+const dot = {
+  cols: 16, rows: 16,
+  cell: 3,        // 1マスの実寸(mm)
+  frame: 3,       // ふちの余白(mm)
+  corner: 3,      // 角丸(mm)
+  hole: "on", holeD: 4,
+  out: "engrave", // engrave | stencil
+  tool: "pen", mirror: "off",
+  cells: null,    // Uint8Array(cols*rows)
+};
+
+// 初期サンプル（にっこりマーク）— 保存データがない時だけ使う
+const STARTER = [
+"................",
+"....########....",
+"..##........##..",
+".#............#.",
+".#..##....##..#.",
+"#...##....##...#",
+"#..............#",
+"#..............#",
+"#..#........#..#",
+".#..#......#..#.",
+".#...######...#.",
+"..##........##..",
+"....########....",
+"................",
+"................",
+"................"];
+
+// ---------- 5×7 ドットフォント（A-Z 0-9 カタカナ ほか） ----------
+// 5列×7行。'#'=塗り。行は | 区切り。
+const GLYPH_SRC = {
+"0":".###.|#...#|#..##|#.#.#|##..#|#...#|.###.",
+"1":"..#..|.##..|..#..|..#..|..#..|..#..|.###.",
+"2":".###.|#...#|....#|...#.|..#..|.#...|#####",
+"3":"#####|...#.|..#..|...#.|....#|#...#|.###.",
+"4":"...#.|..##.|.#.#.|#..#.|#####|...#.|...#.",
+"5":"#####|#....|####.|....#|....#|#...#|.###.",
+"6":"..##.|.#...|#....|####.|#...#|#...#|.###.",
+"7":"#####|....#|...#.|..#..|..#..|..#..|..#..",
+"8":".###.|#...#|#...#|.###.|#...#|#...#|.###.",
+"9":".###.|#...#|#...#|.####|....#|...#.|.##..",
+"A":".###.|#...#|#...#|#####|#...#|#...#|#...#",
+"B":"####.|#...#|#...#|####.|#...#|#...#|####.",
+"C":".###.|#...#|#....|#....|#....|#...#|.###.",
+"D":"####.|#...#|#...#|#...#|#...#|#...#|####.",
+"E":"#####|#....|#....|####.|#....|#....|#####",
+"F":"#####|#....|#....|####.|#....|#....|#....",
+"G":".###.|#...#|#....|#.###|#...#|#...#|.###.",
+"H":"#...#|#...#|#...#|#####|#...#|#...#|#...#",
+"I":".###.|..#..|..#..|..#..|..#..|..#..|.###.",
+"J":"..###|...#.|...#.|...#.|...#.|#..#.|.##..",
+"K":"#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#",
+"L":"#....|#....|#....|#....|#....|#....|#####",
+"M":"#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#",
+"N":"#...#|##..#|#.#.#|#..##|#...#|#...#|#...#",
+"O":".###.|#...#|#...#|#...#|#...#|#...#|.###.",
+"P":"####.|#...#|#...#|####.|#....|#....|#....",
+"Q":".###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#",
+"R":"####.|#...#|#...#|####.|#.#..|#..#.|#...#",
+"S":".####|#....|#....|.###.|....#|....#|####.",
+"T":"#####|..#..|..#..|..#..|..#..|..#..|..#..",
+"U":"#...#|#...#|#...#|#...#|#...#|#...#|.###.",
+"V":"#...#|#...#|#...#|#...#|#...#|.#.#.|..#..",
+"W":"#...#|#...#|#...#|#.#.#|#.#.#|##.##|#...#",
+"X":"#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#",
+"Y":"#...#|#...#|.#.#.|..#..|..#..|..#..|..#..",
+"Z":"#####|....#|...#.|..#..|.#...|#....|#####",
+"ア":"#####|....#|...#.|..##.|..#..|..#..|.#...",
+"イ":"....#|...#.|..#..|.##..|..#..|..#..|..#..",
+"ウ":"..#..|#####|#...#|....#|...#.|..#..|.#...",
+"エ":"#####|..#..|..#..|..#..|..#..|..#..|#####",
+"オ":"...#.|#####|...#.|..##.|.#.#.|...#.|...#.",
+"カ":"..#..|..#..|#####|.#..#|.#..#|.#..#|#..#.",
+"キ":"..#..|..#..|#####|..#..|#####|..#..|..#..",
+"ク":"..###|.#..#|#...#|....#|...#.|..#..|.#...",
+"ケ":".#...|.#...|.####|...#.|...#.|..#..|.#...",
+"コ":"#####|....#|....#|....#|....#|....#|#####",
+"サ":".#.#.|.#.#.|#####|.#.#.|...#.|..#..|.#...",
+"シ":"#...#|.#..#|....#|....#|...#.|..#..|##...",
+"ス":"#####|....#|...#.|..#..|.#.#.|#...#|.....",
+"セ":".#...|.#..#|####.|.#...|.#...|.#...|..###",
+"ソ":"#...#|#...#|.#..#|....#|...#.|..#..|.#...",
+"タ":"..###|.#..#|#...#|..#.#|...#.|..#..|.#...",
+"チ":"....#|.####|..#..|#####|..#..|..#..|.#...",
+"ツ":"#.#.#|#.#.#|....#|....#|...#.|..#..|##...",
+"テ":".####|.....|#####|..#..|..#..|..#..|.#...",
+"ト":".#...|.#...|.#...|.##..|.#.#.|.#..#|.#...",
+"ナ":"..#..|..#..|#####|..#..|..#..|.#...|#....",
+"ニ":".....|.###.|.....|.....|.....|#####|.....",
+"ヌ":"#####|....#|...#.|.#.#.|..#..|.#.#.|#...#",
+"ネ":"..#..|#####|...#.|..#..|.###.|#.#.#|..#..",
+"ノ":"....#|....#|...#.|...#.|..#..|.#...|#....",
+"ハ":".....|.#.#.|.#.#.|.#.#.|#...#|#...#|#...#",
+"ヒ":"#....|#...#|#.##.|##...|#....|#....|.####",
+"フ":"#####|....#|....#|....#|...#.|..#..|.#...",
+"ヘ":".....|.....|.##..|#..#.|....#|.....|.....",
+"ホ":"..#..|#####|..#..|#.#.#|#.#.#|..#..|..#..",
+"マ":"#####|....#|...#.|.#.#.|..#..|...#.|.....",
+"ミ":".###.|....#|.....|.###.|....#|.....|#####",
+"ム":"..#..|..#..|.#...|.#.#.|#...#|#####|.....",
+"メ":"....#|...#.|#..#.|.#.#.|..#..|.#.#.|#...#",
+"モ":".####|..#..|..#..|#####|..#..|..#..|...##",
+"ヤ":".#...|.#..#|.###.|#.#..|..#..|..#..|..#..",
+"ユ":".....|.###.|....#|....#|....#|#####|.....",
+"ヨ":"#####|....#|....#|.####|....#|....#|#####",
+"ラ":".####|.....|#####|....#|...#.|..#..|.#...",
+"リ":"#..#.|#..#.|#..#.|#..#.|...#.|..#..|.#...",
+"ル":".#..#|.#..#|.#..#|.#..#|##..#|...##|....#",
+"レ":"#....|#....|#....|#...#|#..#.|#.#..|##...",
+"ロ":"#####|#...#|#...#|#...#|#...#|#...#|#####",
+"ワ":"#####|#...#|#...#|....#|...#.|..#..|.#...",
+"ヲ":"#####|....#|....#|.####|...#.|..#..|.#...",
+"ン":"#....|.#..#|....#|....#|...#.|..#..|##...",
+"ー":".....|.....|.....|#####|.....|.....|.....",
+"゛":".#.#.|#.#..|.....|.....|.....|.....|.....",
+"゜":".##..|#..#.|.##..|.....|.....|.....|.....",
+"ッ":".....|.....|#.#.#|....#|....#|...#.|.##..",
+"ャ":".....|.....|.#...|.#..#|####.|..#..|..#..",
+"ュ":".....|.....|.###.|....#|....#|#####|.....",
+"ョ":".....|.....|.####|....#|.####|....#|.####",
+"！":"..#..|..#..|..#..|..#..|..#..|.....|..#..",
+"？":".###.|#...#|....#|...#.|..#..|.....|..#..",
+"・":".....|.....|.....|..##.|..##.|.....|.....",
+"♥":".....|.#.#.|#####|#####|.###.|..#..|.....",
+"★":"..#..|..#..|#####|.###.|.#.#.|#...#|.....",
+"−":".....|.....|.....|.###.|.....|.....|.....",
+};
+const FONT = {};
+for (const k in GLYPH_SRC) FONT[k] = GLYPH_SRC[k].split("|");
+// 小さい仮名で専用グリフがないものは大きい字で代用
+const SMALL_MAP = { "ァ":"ア","ィ":"イ","ゥ":"ウ","ェ":"エ","ォ":"オ","ヮ":"ワ","ヵ":"カ","ヶ":"ケ" };
+
+function textToGlyphs(str){
+  const out = [];
+  for (const raw of str.normalize("NFKD")){ // 全角→半角、が→か+゛ などを分解
+    let ch = raw.toUpperCase();
+    const cp = ch.codePointAt(0);
+    if (cp >= 0x3041 && cp <= 0x3096) ch = String.fromCharCode(cp + 0x60); // ひらがな→カタカナ
+    if (ch === "゙") ch = "゛";
+    if (ch === "゚") ch = "゜";
+    if (ch === "-" || ch === "ｰ" || ch === "―") ch = "−";
+    if (SMALL_MAP[ch]) ch = SMALL_MAP[ch];
+    if (ch === " " || ch === "　"){ out.push(null); continue; }
+    out.push(FONT[ch] || FONT["？"]);
+  }
+  return out;
+}
+
+// ---------- 輪郭トレース：塗りマスの集まり → 閉じたカットループ ----------
+function traceOutlines(get, cols, rows){
+  const filled = (c, r) => c >= 0 && r >= 0 && c < cols && r < rows && !!get(c, r);
+  const edges = new Map();
+  const add = (x1, y1, x2, y2) =>
+    edges.set(x1 + "," + y1 + "," + Math.sign(x2 - x1) + "," + Math.sign(y2 - y1), [x2, y2]);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++){
+    if (!filled(c, r)) continue;
+    if (!filled(c, r - 1)) add(c, r, c + 1, r);
+    if (!filled(c + 1, r)) add(c + 1, r, c + 1, r + 1);
+    if (!filled(c, r + 1)) add(c + 1, r + 1, c, r + 1);
+    if (!filled(c - 1, r)) add(c, r + 1, c, r);
+  }
+  const loops = [];
+  while (edges.size){
+    const first = edges.keys().next().value;
+    const [sx, sy, dx0, dy0] = first.split(",").map(Number);
+    const end = edges.get(first);
+    edges.delete(first);
+    const pts = [[sx, sy]];
+    let cx = end[0], cy = end[1], dx = dx0, dy = dy0, guard = 1e6;
+    while ((cx !== sx || cy !== sy) && guard-- > 0){
+      pts.push([cx, cy]);
+      // 右折優先→直進→左折：斜め接触のマスを別ループに分ける
+      const cand = [[-dy, dx], [dx, dy], [dy, -dx]];
+      let moved = false;
+      for (const [nx, ny] of cand){
+        const k = cx + "," + cy + "," + nx + "," + ny;
+        if (edges.has(k)){
+          const e = edges.get(k);
+          edges.delete(k);
+          dx = nx; dy = ny; cx = e[0]; cy = e[1];
+          moved = true; break;
+        }
+      }
+      if (!moved) break;
+    }
+    loops.push(pts);
+  }
+  return loops;
+}
+function mergeCollinear(pts){
+  const q = [], n = pts.length;
+  for (let i = 0; i < n; i++){
+    const a = pts[(i + n - 1) % n], b = pts[i], c = pts[(i + 1) % n];
+    if ((b[0]-a[0])*(c[1]-b[1]) !== (b[1]-a[1])*(c[0]-b[0])) q.push(b);
+  }
+  return q;
+}
+function loopsToPath(loops, s, ox, oy){
+  let d = "";
+  for (const pts of loops){
+    if (pts.length < 4) continue;
+    d += "M" + pts.map(p => (ox + p[0]*s).toFixed(3) + " " + (oy + p[1]*s).toFixed(3)).join(" L") + " Z ";
+  }
+  return d.trim();
+}
+
+// ---------- 形状ヘルパ ----------
+function roundedRect(w, h, r){
+  r = Math.max(0, Math.min(r, w/2, h/2));
+  if (r === 0) return `M0 0H${w}V${h}H0Z`;
+  return `M${r} 0H${(w-r).toFixed(3)}A${r} ${r} 0 0 1 ${w} ${r}V${(h-r).toFixed(3)}` +
+         `A${r} ${r} 0 0 1 ${(w-r).toFixed(3)} ${h}H${r}A${r} ${r} 0 0 1 0 ${(h-r).toFixed(3)}` +
+         `V${r}A${r} ${r} 0 0 1 ${r} 0Z`;
+}
+function dotGeom(){
+  const tab = dot.hole === "on" ? dot.holeD + 4 : 0;   // 穴の耳（上下2mmずつの縁）
+  const W = dot.cols * dot.cell + 2 * dot.frame;
+  const H = dot.rows * dot.cell + 2 * dot.frame + tab;
+  return { tab, W, H, ox: dot.frame, oy: dot.frame + tab, holeCx: W/2, holeCy: 2 + dot.holeD/2 };
+}
+function dotPixelPath(){
+  const loops = traceOutlines((c, r) => dot.cells[r * dot.cols + c], dot.cols, dot.rows)
+                .map(mergeCollinear);
+  const g = dotGeom();
+  return loopsToPath(loops, dot.cell, g.ox, g.oy);
+}
+
+// ---------- 描画 ----------
+function renderDot(){
+  const g = dotGeom();
+  const d = dotPixelPath();
+  let grid = "";
+  for (let c = 0; c <= dot.cols; c++){
+    const x = (g.ox + c * dot.cell).toFixed(3);
+    grid += `M${x} ${g.oy.toFixed(3)}V${(g.oy + dot.rows*dot.cell).toFixed(3)}`;
+  }
+  for (let r = 0; r <= dot.rows; r++){
+    const y = (g.oy + r * dot.cell).toFixed(3);
+    grid += `M${g.ox.toFixed(3)} ${y}H${(g.ox + dot.cols*dot.cell).toFixed(3)}`;
+  }
+  const px = !d ? "" : dot.out === "stencil"
+    ? `<path d="${d}" fill="#eef2f5" stroke="#e11" stroke-width="0.25"/>`
+    : `<path d="${d}" fill="#5b4224" fill-rule="nonzero"/>`;
+  const hole = dot.hole === "on"
+    ? `<circle cx="${g.holeCx}" cy="${g.holeCy}" r="${dot.holeD/2}" fill="#eef2f5" stroke="#e11" stroke-width="0.25"/>`
+    : "";
+  document.getElementById("svgWrap").innerHTML =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 ${g.W + 8} ${g.H + 8}" style="cursor:crosshair">` +
+    `<path d="${roundedRect(g.W, g.H, dot.corner)}" fill="#ead9b0" stroke="#e11" stroke-width="0.3"/>` +
+    hole + px +
+    `<path d="${grid}" fill="none" stroke="rgba(0,0,0,.13)" stroke-width="0.12"/>` +
+    `</svg>`;
+
+  let n = 0;
+  for (let i = 0; i < dot.cells.length; i++) n += dot.cells[i];
+  const modeNote = dot.out === "stencil"
+    ? "赤線をぜんぶカット。<span class='warn'>まわりを囲まれた「島」は抜け落ちます</span>（ステンシルの宿命）"
+    : "茶色＝彫刻（LightBurnで黒をFillに）／ 赤＝カット";
+  document.getElementById("stats").innerHTML =
+    "プレート: <b>" + g.W.toFixed(1) + " × " + g.H.toFixed(1) + " mm</b> ／ ぬり " + n + " マス（1マス " + dot.cell + "mm）" +
+    "<br>" + modeNote;
+  document.getElementById("outHint").innerHTML = dot.out === "stencil"
+    ? "絵の形をくり抜いて、スプレーやスタンプの型にします。線でつながっていない「島」に注意！"
+    : "絵を焦がして彫り、外形と穴だけカット。名札・キーホルダー向き。";
+  saveDotSoon();
+}
+
+// ---------- SVG書き出し ----------
+function downloadDot(){
+  const g = dotGeom();
+  const d = dotPixelPath();
+  let body = `<path d="${roundedRect(g.W, g.H, dot.corner)}" fill="none" stroke="#ff0000" stroke-width="0.1"/>\n`;
+  if (dot.hole === "on")
+    body += `<circle cx="${g.holeCx}" cy="${g.holeCy}" r="${dot.holeD/2}" fill="none" stroke="#ff0000" stroke-width="0.1"/>\n`;
+  if (d){
+    body += dot.out === "stencil"
+      ? `<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.1"/>\n`
+      : `<path d="${d}" fill="#000000" fill-rule="nonzero" stroke="none"/>\n`;
+  }
+  const svg =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${g.W.toFixed(2)}mm" height="${g.H.toFixed(2)}mm" viewBox="0 0 ${g.W.toFixed(2)} ${g.H.toFixed(2)}">\n` +
+    body + `</svg>`;
+  saveSVG(svg, "dot_" + dot.cols + "x" + dot.rows + "_" + g.W.toFixed(0) + "x" + g.H.toFixed(0) + "mm" +
+    (dot.out === "stencil" ? "_stencil" : "_tag") + ".svg");
+}
+
+function saveSVG(svg, name){
+  const who = (document.getElementById("authorIn").value || "").trim().replace(/[\\\/:*?"<>|\s]+/g, "_");
+  if (who) name = name.replace(/\.svg$/, "_" + who + ".svg");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+// ---------- 編集操作 ----------
+const undoStack = [];
+function pushUndo(){
+  undoStack.push(dot.cells.slice());
+  if (undoStack.length > 40) undoStack.shift();
+}
+function setCell(c, r, v){
+  if (c < 0 || r < 0 || c >= dot.cols || r >= dot.rows) return;
+  dot.cells[r * dot.cols + c] = v;
+}
+function paintAt(c, r, v){
+  setCell(c, r, v);
+  if (dot.mirror === "on") setCell(dot.cols - 1 - c, r, v);
+}
+function stampText(c0, r0){
+  const txt = document.getElementById("stampText").value;
+  if (!txt) return false;
+  let x = c0;
+  for (const gl of textToGlyphs(txt)){
+    if (gl){
+      for (let gy = 0; gy < 7; gy++)
+        for (let gx = 0; gx < 5; gx++)
+          if (gl[gy][gx] === "#") setCell(x + gx, r0 + gy, 1);
+    }
+    x += 6;
+  }
+  return true;
+}
+function remapCells(old, oldCols, oldRows){
+  const next = new Uint8Array(dot.cols * dot.rows);
+  for (let r = 0; r < Math.min(oldRows, dot.rows); r++)
+    for (let c = 0; c < Math.min(oldCols, dot.cols); c++)
+      next[r * dot.cols + c] = old[r * oldCols + c];
+  dot.cells = next;
+  undoStack.length = 0;
+}
+
+// ---------- ポインタ操作（プレビューに直接描く） ----------
+const svgWrap = document.getElementById("svgWrap");
+let painting = false, paintVal = 1;
+function eventCell(e){
+  const svg = svgWrap.querySelector("svg");
+  if (!svg || app.mode !== "dot") return null;
+  const m = svg.getScreenCTM();
+  if (!m) return null;
+  const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+  const g = dotGeom();
+  const c = Math.floor((pt.x - g.ox) / dot.cell);
+  const r = Math.floor((pt.y - g.oy) / dot.cell);
+  if (c < 0 || r < 0 || c >= dot.cols || r >= dot.rows) return null;
+  return { c, r };
+}
+svgWrap.addEventListener("pointerdown", e => {
+  const cell = eventCell(e);
+  if (!cell) return;
+  e.preventDefault();
+  pushUndo();
+  if (dot.tool === "text"){
+    if (stampText(cell.c, cell.r)) renderDot(); else undoStack.pop();
+    return;
+  }
+  painting = true;
+  paintVal = dot.tool === "eraser" ? 0 : 1;
+  try { svgWrap.setPointerCapture(e.pointerId); } catch (_) {}
+  paintAt(cell.c, cell.r, paintVal);
+  renderDot();
+});
+svgWrap.addEventListener("pointermove", e => {
+  if (!painting) return;
+  const cell = eventCell(e);
+  if (!cell) return;
+  paintAt(cell.c, cell.r, paintVal);
+  renderDot();
+});
+addEventListener("pointerup", () => { painting = false; });
+
+document.getElementById("undoBtn").addEventListener("click", () => {
+  const prev = undoStack.pop();
+  if (prev && prev.length === dot.cells.length){ dot.cells = prev; renderDot(); }
+});
+document.getElementById("invBtn").addEventListener("click", () => {
+  pushUndo();
+  for (let i = 0; i < dot.cells.length; i++) dot.cells[i] = dot.cells[i] ? 0 : 1;
+  renderDot();
+});
+document.getElementById("clearBtn").addEventListener("click", () => {
+  pushUndo();
+  dot.cells.fill(0);
+  renderDot();
+});
+
+// ---------- 保存・復元（localStorage） ----------
+let saveTimer = null;
+function saveDotSoon(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem("laserKoubou.dot", JSON.stringify({
+        cols: dot.cols, rows: dot.rows, cell: dot.cell, frame: dot.frame, corner: dot.corner,
+        hole: dot.hole, holeD: dot.holeD, out: dot.out,
+        px: Array.from(dot.cells).join(""),
+      }));
+    } catch (_) {}
+  }, 300);
+}
+function loadDot(){
+  try {
+    const s = JSON.parse(localStorage.getItem("laserKoubou.dot"));
+    if (!s || !s.px || s.px.length !== s.cols * s.rows) return false;
+    dot.cols = s.cols; dot.rows = s.rows; dot.cell = s.cell; dot.frame = s.frame;
+    dot.corner = s.corner; dot.hole = s.hole; dot.holeD = s.holeD; dot.out = s.out;
+    dot.cells = Uint8Array.from(s.px, ch => ch === "1" ? 1 : 0);
+    return true;
+  } catch (_) { return false; }
+}
+if (!loadDot()){
+  dot.cells = new Uint8Array(dot.cols * dot.rows);
+  STARTER.forEach((row, r) => {
+    for (let c = 0; c < row.length; c++) if (row[c] === "#") dot.cells[r * dot.cols + c] = 1;
+  });
+}
+
+/* ==================================================================
+   共通：パーツ（cut/engパス集合）のプレビューと書き出し
+   piece = { w, h, cut:[path…](先頭=外形・残り=穴), eng:[path…] }
+================================================================== */
+function circlePath(cx, cy, r){
+  return `M${(cx-r).toFixed(3)} ${cy.toFixed(3)}A${r} ${r} 0 1 0 ${(cx+r).toFixed(3)} ${cy.toFixed(3)}A${r} ${r} 0 1 0 ${(cx-r).toFixed(3)} ${cy.toFixed(3)}Z`;
+}
+function renderPieces(pieces){
+  const ext = layoutPanels(pieces);   // w/h だけ使う汎用詰め込み
+  const over = ext.w > BED.w || ext.h > BED.h;
+  let inner = "";
+  for (const p of pieces){
+    inner += `<g transform="translate(${p.x},${p.y})">`;
+    p.cut.forEach((d, i) => {
+      inner += `<path d="${d}" fill="${i === 0 ? "rgba(15,163,163,0.10)" : "#eef2f5"}" stroke="#e11" stroke-width="0.4"/>`;
+    });
+    (p.eng || []).forEach(d => {
+      inner += `<path d="${d}" fill="#5b4224" fill-rule="nonzero"/>`;
+    });
+    inner += `</g>`;
+  }
+  document.getElementById("svgWrap").innerHTML =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 ${BED.w + 4} ${BED.h + 4}">` +
+    `<rect x="0" y="0" width="${BED.w}" height="${BED.h}" fill="#fff" stroke="#9fb4c4" stroke-width="0.8" stroke-dasharray="4 3"/>` +
+    inner + `</svg>`;
+  return { ext, over };
+}
+function downloadPieces(pieces, name){
+  const ext = layoutPanels(pieces);
+  let inner = "";
+  for (const p of pieces){
+    inner += `<g transform="translate(${p.x},${p.y})">`;
+    p.cut.forEach(d => { inner += `<path d="${d}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`; });
+    (p.eng || []).forEach(d => { inner += `<path d="${d}" fill="#000000" fill-rule="nonzero" stroke="none"/>`; });
+    inner += `</g>`;
+  }
+  const svg =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${ext.w.toFixed(2)}mm" height="${ext.h.toFixed(2)}mm" viewBox="0 0 ${ext.w.toFixed(2)} ${ext.h.toFixed(2)}">\n` +
+    inner + `\n</svg>`;
+  saveSVG(svg, name);
+}
+// 文字→彫刻ループ群（ドットフォント流用）。boxに収まるセルサイズを自動決定
+function textEngraveLoops(txt, cellMax, boxW, boxH, minCell){
+  const gs = textToGlyphs(txt);
+  if (!gs.length) return null;
+  const cols = gs.length * 6 - 1, rows = 7;
+  const cell = Math.min(cellMax, boxW / cols, boxH / rows);
+  if (cell < (minCell || 1.0)) return null;
+  const g = new Uint8Array(cols * rows);
+  gs.forEach((gl, i) => {
+    if (!gl) return;
+    for (let y = 0; y < 7; y++) for (let x = 0; x < 5; x++)
+      if (gl[y][x] === "#") g[y * cols + i * 6 + x] = 1;
+  });
+  const loops = traceOutlines((c, r) => g[r * cols + c], cols, rows).map(mergeCollinear);
+  return { loops, cell, w: cols * cell, h: rows * cell };
+}
+
+/* ==================================================================
+   ⚙️ 歯車おもちゃ（インボリュート歯形・検証済みロジック）
+================================================================== */
+const gear = { m: 3, z1: 12, z2: 24, third: "off", z3: 30, axle: 4.5, crank: "on", backlash: 0.2 };
+
+function gearOutlinePts(m, z, backlash){
+  const pa = 20 * Math.PI / 180, TAU = Math.PI * 2;
+  const rp = m * z / 2, rb = rp * Math.cos(pa), ra = rp + m;
+  const rf = Math.max(rp - 1.25 * m, 1.5);
+  const inv = a => Math.tan(a) - a;
+  const halfT = Math.PI / (2 * z) - backlash / (2 * rp);
+  const base = halfT + inv(pa);
+  const tipHalf = base - inv(Math.acos(Math.min(1, rb / ra)));
+  const N = 8, pts = [];
+  const P = (r, th) => pts.push([r * Math.cos(th), r * Math.sin(th)]);
+  for (let k = 0; k < z; k++){
+    const A = k * TAU / z;
+    P(rf, A - base);
+    for (let i = 0; i <= N; i++){
+      const r = rb + (ra - rb) * i / N;
+      P(r, A - base + inv(Math.acos(Math.min(1, rb / r))));
+    }
+    if (tipHalf > 0.004) for (let i = 1; i < 3; i++) P(ra, A - tipHalf + 2 * tipHalf * i / 3);
+    for (let i = N; i >= 0; i--){
+      const r = rb + (ra - rb) * i / N;
+      P(r, A + base - inv(Math.acos(Math.min(1, rb / r))));
+    }
+    P(rf, A + base);
+    const start = A + base, end = (k + 1) * TAU / z - base;
+    for (let i = 1; i < 3; i++) P(rf, start + (end - start) * i / 3);
+  }
+  return { pts, ra, rf, rp };
+}
+function gearPiece(z){
+  const { pts, ra, rf, rp } = gearOutlinePts(gear.m, z, gear.backlash);
+  const c = ra;
+  const d = "M" + pts.map(p => (c + p[0]).toFixed(3) + " " + (c + p[1]).toFixed(3)).join(" L") + " Z";
+  const cut = [d, circlePath(c, c, gear.axle / 2)];
+  const eng = [];
+  const t = textEngraveLoops(String(z), 1.6, rf * 1.1, rf - gear.axle / 2 - 6);
+  if (t){
+    const cy = c - (gear.axle / 2 + 4 + t.h);   // 穴の上に歯数を彫刻
+    if (gear.axle / 2 + 4 + t.h < rf - 2)
+      eng.push(loopsToPath(t.loops, t.cell, c - t.w / 2, cy));
+  }
+  return { w: 2 * ra, h: 2 * ra, cut, eng, rp };
+}
+function makeGearPieces(){
+  const zs = gear.third === "on" ? [gear.z1, gear.z2, gear.z3] : [gear.z1, gear.z2];
+  const gearsP = zs.map(gearPiece);
+  // 土台プレート：かみ合う中心距離で軸穴を一列に
+  const play = 0.15, mg = 14, holeY = 14, plateH = 40;
+  const xs = [0];
+  for (let i = 1; i < gearsP.length; i++) xs.push(xs[i-1] + gearsP[i-1].rp + gearsP[i].rp + play);
+  const span = xs[xs.length - 1];
+  const plateW = span + 2 * mg;
+  const cut = [roundedRect(plateW, plateH, 6)];
+  xs.forEach(x => cut.push(circlePath(mg + x, holeY, gear.axle / 2)));
+  const eng = [];
+  const label = textEngraveLoops(zs.join("−"), 1.8, plateW - 12, plateH - holeY - 12);
+  if (label) eng.push(loopsToPath(label.loops, label.cell, (plateW - label.w) / 2, holeY + 8));
+  const pieces = [...gearsP, { w: plateW, h: plateH, cut, eng }];
+  if (gear.crank === "on"){
+    const r = 17;
+    pieces.push({ w: 34, h: 34, cut: [circlePath(r, r, r), circlePath(r, r, gear.axle / 2), circlePath(r + 10.5, r, 3)], eng: [] });
+  }
+  return pieces;
+}
+function renderGear(){
+  const pieces = makeGearPieces();
+  const { ext, over } = renderPieces(pieces);
+  const ratio = (gear.z2 / gear.z1).toFixed(2);
+  let note = "Aを1回まわすと B は " + (gear.z1 / gear.z2).toFixed(2) + " 回転（減速比 " + ratio + "：1）";
+  if (gear.third === "on") note += " ／ C は " + (gear.z1 / gear.z3).toFixed(2) + " 回転";
+  document.getElementById("stats").innerHTML =
+    "パーツ: " + pieces.length + "枚 ／ 配置サイズ: <b>" + ext.w.toFixed(0) + " × " + ext.h.toFixed(0) + " mm</b>" +
+    (over ? " <span class='warn'>⚠ 作業エリア(400×415)を超えています</span>" : "") +
+    "<br>⚙ " + note;
+}
+function downloadGear(){
+  downloadPieces(makeGearPieces(),
+    "gear_m" + gear.m + "_" + gear.z1 + "-" + gear.z2 + (gear.third === "on" ? "-" + gear.z3 : "") + ".svg");
+}
+
+/* ==================================================================
+   📱 スマホスタンド（横板2枚＋クロスバー2本・検証済みロジック）
+================================================================== */
+const stand = { tilt: 20, width: 60, len: 110, phone: 14, lip: 14, t: 3, kerf: 0.15 };
+const SLOT_L = 16, SLOT_INSET = 5, LIP_T = 6;
+
+function standProfile(){
+  const phi = stand.tilt * Math.PI / 180;
+  const ux = Math.sin(phi), uy = Math.cos(phi);   // 支え方向（上・後ろへ）
+  const mx = Math.cos(phi), my = -Math.sin(phi);  // 材料の内向き
+  const floorBase = Math.max(12, ((LIP_T + stand.phone) * Math.sin(phi) + 4) / Math.cos(phi));
+  const A  = [0, 0];
+  const B  = [(floorBase + stand.lip) * ux, (floorBase + stand.lip) * uy];
+  const B2t= [B[0] + LIP_T * mx, B[1] + LIP_T * my];
+  const B2 = [B2t[0] - stand.lip * ux, B2t[1] - stand.lip * uy];
+  const C  = [B2[0] + stand.phone * mx, B2[1] + stand.phone * my];
+  const D1 = [C[0] + stand.len * ux, C[1] + stand.len * uy];
+  const E  = [D1[0], 0];
+  const poly = [A, B, B2t, B2, C, D1, E];
+  const slotL = SLOT_L - stand.kerf, slotW = stand.t - stand.kerf;
+  const s2max = ((E[0] - 4 - C[0] - (SLOT_INSET + stand.t) * mx) / ux) - 8 - slotL / 2;
+  const sPos = [Math.max(10, 0.18 * stand.len), Math.min(0.55 * stand.len, s2max)];
+  const slots = sPos.map(s => {
+    const p0 = [C[0] + (s - slotL / 2) * ux + SLOT_INSET * mx, C[1] + (s - slotL / 2) * uy + SLOT_INSET * my];
+    return [p0,
+      [p0[0] + slotL * ux, p0[1] + slotL * uy],
+      [p0[0] + slotL * ux + slotW * mx, p0[1] + slotL * uy + slotW * my],
+      [p0[0] + slotW * mx, p0[1] + slotW * my]];
+  });
+  return { poly, slots };
+}
+function makeStandPieces(){
+  const { poly, slots } = standProfile();
+  const maxY = Math.max(...poly.map(p => p[1]));
+  const w = Math.max(...poly.map(p => p[0]));
+  const toSvg = p => p[0].toFixed(3) + " " + (maxY - p[1]).toFixed(3);  // y軸を反転
+  const cut = ["M" + poly.map(toSvg).join(" L") + " Z",
+               ...slots.map(sl => "M" + sl.map(toSvg).join(" L") + " Z")];
+  const side = { w, h: maxY, cut, eng: [] };
+  // クロスバー（両端ツメ付き）×2
+  const t = stand.t, W = stand.width, bh = 20, sh = (bh - SLOT_L) / 2;
+  const barPts = [[t,0],[t+W,0],[t+W,sh],[t+W+t,sh],[t+W+t,bh-sh],[t+W,bh-sh],[t+W,bh],[t,bh],[t,bh-sh],[0,bh-sh],[0,sh],[t,sh]];
+  const barPath = "M" + barPts.map(p => p[0].toFixed(3) + " " + p[1].toFixed(3)).join(" L") + " Z";
+  const bar1 = { w: W + 2 * t, h: bh, cut: [barPath], eng: [] };
+  const bar2 = { w: W + 2 * t, h: bh, cut: [barPath], eng: [] };
+  const nameTxt = document.getElementById("standName").value.trim();
+  if (nameTxt){
+    const te = textEngraveLoops(nameTxt, 2.2, W - 10, SLOT_L - 2);
+    if (te) bar1.eng.push(loopsToPath(te.loops, te.cell, t + (W - te.w) / 2, (bh - te.h) / 2));
+  }
+  return { pieces: [side, { ...side }, bar1, bar2], size: { w: W + 2 * t, d: w, h: maxY } };
+}
+function renderStand(){
+  const { pieces, size } = makeStandPieces();
+  const { ext, over } = renderPieces(pieces);
+  document.getElementById("stats").innerHTML =
+    "パーツ: 4枚（横板×2・バー×2） ／ 配置サイズ: <b>" + ext.w.toFixed(0) + " × " + ext.h.toFixed(0) + " mm</b>" +
+    (over ? " <span class='warn'>⚠ 作業エリア(400×415)を超えています</span>" : "") +
+    "<br>完成サイズ: 幅 " + size.w.toFixed(0) + " × 奥行 " + size.d.toFixed(0) + " × 高さ " + size.h.toFixed(0) + " mm ／ カーフ " + stand.kerf + "mm 補正済み";
+}
+function downloadStand(){
+  downloadPieces(makeStandPieces().pieces,
+    "stand_" + stand.tilt + "deg_w" + stand.width + "_t" + stand.t + ".svg");
+}
+
+/* ==================================================================
+   🗂️ 仕切りケース（箱エンジン再利用＋十字組み仕切り）
+================================================================== */
+const tray = { X: 150, Y: 100, Z: 40, nx: 3, ny: 2, t: 3, kerf: 0.15, finger: 12 };
+
+// 片側の辺にみぞ（上または下から差す切り欠き）を持つ長方形
+function notchedRect(w, h, centers, sw, depth, fromTop){
+  let d = "M0 0";
+  if (fromTop){
+    for (const x of centers) d += ` L${(x - sw/2).toFixed(3)} 0 V${depth.toFixed(3)} H${(x + sw/2).toFixed(3)} V0`;
+  }
+  d += ` L${w.toFixed(3)} 0 V${h.toFixed(3)}`;
+  if (!fromTop){
+    const rev = [...centers].sort((a, b) => b - a);
+    for (const x of rev) d += ` L${(x + sw/2).toFixed(3)} ${h.toFixed(3)} V${(h - depth).toFixed(3)} H${(x - sw/2).toFixed(3)} V${h.toFixed(3)}`;
+  }
+  d += ` L0 ${h.toFixed(3)} Z`;
+  return d;
+}
+function makeTrayPieces(){
+  const t = tray.t, k = tray.kerf, f = tray.finger;
+  const X = tray.X, Y = tray.Y, Z = tray.Z;
+  const walls = [
+    { w: X, h: Z, edges: ["female", "male", "flat", "male"] },
+    { w: X, h: Z, edges: ["female", "male", "flat", "male"] },
+    { w: Y, h: Z, edges: ["female", "female", "flat", "female"] },
+    { w: Y, h: Z, edges: ["female", "female", "flat", "female"] },
+    { w: X, h: Y, edges: ["male", "male", "male", "male"] },
+  ].map(p => ({ w: p.w, h: p.h, cut: [panelPath(p.w, p.h, p.edges, t, f, k)], eng: [] }));
+  const nm = document.getElementById("trayName").value.trim();
+  if (nm){
+    const te = textEngraveLoops(nm, 2.5, X - 24, Z - 14);
+    if (te) walls[0].eng.push(loopsToPath(te.loops, te.cell, (X - te.w) / 2, (Z - te.h) / 2 - 1));
+  }
+  const iX = X - 2 * t, iY = Y - 2 * t, hd = Z - t, sw = t - k;
+  const centers = (inner, n) => {
+    const pocket = (inner - (n - 1) * t) / n, cs = [];
+    for (let i = 1; i < n; i++) cs.push(i * (pocket + t) - t / 2);
+    return cs;
+  };
+  const cxs = centers(iX, tray.nx), cys = centers(iY, tray.ny);
+  const pieces = [...walls];
+  for (let i = 0; i < cxs.length; i++)   // 縦仕切り（Y方向）：みぞ下→上から組む相手
+    pieces.push({ w: iY, h: hd, cut: [notchedRect(iY, hd, cys, sw, hd / 2, false)], eng: [] });
+  for (let j = 0; j < cys.length; j++)   // 横仕切り（X方向）：みぞ上
+    pieces.push({ w: iX, h: hd, cut: [notchedRect(iX, hd, cxs, sw, hd / 2, true)], eng: [] });
+  return { pieces, pocket: { x: (iX - (tray.nx - 1) * t) / tray.nx, y: (iY - (tray.ny - 1) * t) / tray.ny } };
+}
+function renderTray(){
+  const { pieces, pocket } = makeTrayPieces();
+  const { ext, over } = renderPieces(pieces);
+  const small = Math.min(pocket.x, pocket.y) < 12;
+  document.getElementById("stats").innerHTML =
+    "パーツ: " + pieces.length + "枚 ／ 配置サイズ: <b>" + ext.w.toFixed(0) + " × " + ext.h.toFixed(0) + " mm</b>" +
+    (over ? " <span class='warn'>⚠ 作業エリア(400×415)を超えています</span>" : "") +
+    "<br>部屋: " + tray.nx + "×" + tray.ny + " ＝ " + (tray.nx * tray.ny) + "室 ／ 1室の内のり <b>" +
+    pocket.x.toFixed(0) + " × " + pocket.y.toFixed(0) + " mm</b>" +
+    (small ? " <span class='warn'>⚠ 部屋がせまい！（12mm未満）</span>" : "");
+}
+function downloadTray(){
+  downloadPieces(makeTrayPieces().pieces,
+    "tray_" + tray.X + "x" + tray.Y + "x" + tray.Z + "_" + tray.nx + "x" + tray.ny + "_t" + tray.t + ".svg");
+}
+
+/* ==================================================================
+   📏 定規＆分度器（目もり・数字はドット彫刻）
+================================================================== */
+const ruler = { kind: "line", len: 150, wid: 30, r: 60, hole: "on" };
+
+function makeRulerPieces(){
+  const eng = [];
+  const nm = document.getElementById("rulerName").value.trim();
+  if (ruler.kind === "line"){
+    const L = ruler.len, Wd = ruler.wid;
+    const cut = [roundedRect(L, Wd, 2)];
+    if (ruler.hole === "on") cut.push(circlePath(L - 8, Wd / 2, 2.25));
+    for (let mm = 0; mm <= L; mm++){                       // 上辺の目もり
+      const len = mm % 10 === 0 ? 5.5 : mm % 5 === 0 ? 4 : 2.5;
+      const x0 = Math.max(0, mm - 0.125), x1 = Math.min(L, mm + 0.125);
+      eng.push(`M${x0.toFixed(3)} 0 H${x1.toFixed(3)} V${len} H${x0.toFixed(3)} Z`);
+    }
+    for (let cm = 0; cm * 10 <= L; cm++){                  // cmの数字
+      const x = cm * 10;
+      const te = textEngraveLoops(String(cm), 1.0, 14, 7);
+      if (!te) continue;
+      if (x - te.w / 2 < 1 || x + te.w / 2 > L - (ruler.hole === "on" ? 14 : 1)) continue;
+      eng.push(loopsToPath(te.loops, te.cell, x - te.w / 2, 7));
+    }
+    if (nm){
+      const te = textEngraveLoops(nm, 1.8, L * 0.6, Wd - 18);
+      if (te) eng.push(loopsToPath(te.loops, te.cell, 8, Wd - 3 - te.h));
+    }
+    return { pieces: [{ w: L, h: Wd, cut, eng }], label: "全長 " + L + " × はば " + Wd + " mm" };
+  }
+  // 分度器（半円・中心ノッチ付き）
+  const r = ruler.r, cx = r, cy = r;
+  const cut = [`M0 ${r} A ${r} ${r} 0 0 1 ${2 * r} ${r} L ${(cx + 2).toFixed(3)} ${r} A 2 2 0 0 0 ${(cx - 2).toFixed(3)} ${r} Z`];
+  for (let deg = 0; deg <= 180; deg++){                    // 角度の目もり（放射状）
+    const a = deg * Math.PI / 180;
+    const dx = Math.cos(a), dy = -Math.sin(a);
+    const px = -dy * 0.125, py = dx * 0.125;               // 目もり線のはば
+    const len = deg % 10 === 0 ? 5 : deg % 5 === 0 ? 3.5 : 2.2;
+    const ro = r - 0.6, ri = ro - len;
+    const pts = [
+      [cx + ro * dx + px, cy + ro * dy + py], [cx + ro * dx - px, cy + ro * dy - py],
+      [cx + ri * dx - px, cy + ri * dy - py], [cx + ri * dx + px, cy + ri * dy + py]];
+    eng.push("M" + pts.map(p => p[0].toFixed(3) + " " + p[1].toFixed(3)).join(" L") + " Z");
+  }
+  for (let deg = 0; deg <= 180; deg += 30){                // 30°ごとに数字
+    const a = deg * Math.PI / 180;
+    const lx = cx + (r - 12) * Math.cos(a), ly = cy - (r - 12) * Math.sin(a);
+    const te = textEngraveLoops(String(deg), 0.9, 15, 7, 0.7);
+    if (te) eng.push(loopsToPath(te.loops, te.cell, lx - te.w / 2, ly - te.h / 2));
+  }
+  eng.push(`M${(cx - 0.125).toFixed(3)} ${r - 7} H${(cx + 0.125).toFixed(3)} V${r - 3.5} H${(cx - 0.125).toFixed(3)} Z`); // 中心の縦線
+  if (nm){
+    const te = textEngraveLoops(nm, 1.4, 2 * r - 60, 9);
+    if (te) eng.push(loopsToPath(te.loops, te.cell, cx - te.w / 2, r - 22));
+  }
+  return { pieces: [{ w: 2 * r, h: r, cut, eng }], label: "半径 " + r + " mm（横はば " + 2 * r + " mm）" };
+}
+function renderRuler(){
+  const { pieces, label } = makeRulerPieces();
+  const { ext, over } = renderPieces(pieces);
+  document.getElementById("stats").innerHTML =
+    (ruler.kind === "line" ? "📏 直線定規: " : "📐 分度器: ") + "<b>" + label + "</b>" +
+    (over ? " <span class='warn'>⚠ 作業エリアを超えています</span>" : "") +
+    "<br>目もり・数字＝彫刻（LightBurnで黒をFillに）／ 赤＝カット";
+}
+function downloadRuler(){
+  downloadPieces(makeRulerPieces().pieces,
+    ruler.kind === "line" ? "ruler_" + ruler.len + "mm.svg" : "protractor_r" + ruler.r + ".svg");
+}
+
+/* ==================================================================
+   🔷 多角形の箱（ツメ＋差し込みリング式）
+   斜め角はフィンガージョイントが効かないため、壁のツメを底板の
+   ほぞ穴に差し、上からリングをはめて上下で挟んで固定する方式。
+================================================================== */
+const poly = { n: 6, W: 90, Z: 60, t: 3, kerf: 0.15, ring: "on" };
+const INSET = 2.5;   // 壁を底板のふちから内側に下げる量（ほぞ穴の外壁を確保）
+
+function polyVerts(R, N, cx, cy){
+  const pts = [];
+  for (let k = 0; k < N; k++){
+    const a = -Math.PI / 2 + Math.PI / N + k * 2 * Math.PI / N;
+    pts.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]);
+  }
+  return pts;
+}
+const ptsPath = pts => "M" + pts.map(p => p[0].toFixed(3) + " " + p[1].toFixed(3)).join(" L") + " Z";
+
+// 壁（下ツメ＋リングあり時は上ツメ）
+function tabbedWallPath(Lw, Z, t, tabL, offs, topToo){
+  const y0 = topToo ? t : 0, y1 = y0 + Z;
+  const f = v => v.toFixed(3);
+  const centers = offs.map(o => Lw / 2 + o).sort((a, b) => a - b);
+  let d = "M0 " + f(y0);
+  if (topToo){
+    for (const c of centers)
+      d += ` L${f(c - tabL/2)} ${f(y0)} L${f(c - tabL/2)} 0 L${f(c + tabL/2)} 0 L${f(c + tabL/2)} ${f(y0)}`;
+  }
+  d += ` L${f(Lw)} ${f(y0)} L${f(Lw)} ${f(y1)}`;
+  for (const c of [...centers].reverse())
+    d += ` L${f(c + tabL/2)} ${f(y1)} L${f(c + tabL/2)} ${f(y1 + t)} L${f(c - tabL/2)} ${f(y1 + t)} L${f(c - tabL/2)} ${f(y1)}`;
+  d += ` L0 ${f(y1)} Z`;
+  return d;
+}
+
+function makePolyPieces(){
+  const N = Math.round(poly.n), R = poly.W / 2, t = poly.t, k = poly.kerf;
+  const aOut = R * Math.cos(Math.PI / N);      // 底板の外アポテム
+  const aW = aOut - INSET;                     // 壁の外面のアポテム
+  const tanN = Math.tan(Math.PI / N);
+  const Lw = 2 * (aW - t) * tanN - 0.3;        // 壁の幅（内側の角で決まる）
+  const em = 2 * (aW - t / 2) * tanN;          // 壁中板面での辺の長さ
+  const tabL = Math.min(20, Math.max(8, em * 0.22));
+  let offs = [0];
+  if (Lw > 2 * tabL + 14){
+    const off = Math.min(em * 0.26, Lw / 2 - tabL / 2 - 2);
+    offs = [-off, off];
+  }
+  // 各辺のほぞ穴（底板・リング共通）
+  const rm = aW - t / 2;                       // 壁の中板面の半径（アポテム方向）
+  const verts = polyVerts(R, N, 0, 0);
+  const slots = [];
+  for (let i = 0; i < N; i++){
+    const A = verts[i], B = verts[(i + 1) % N];
+    const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+    const ml = Math.hypot(mx, my);
+    const ux = B[0] - A[0], uy = B[1] - A[1], ul = Math.hypot(ux, uy);
+    const tx = ux / ul, ty = uy / ul;          // 接線
+    const nx = mx / ml, ny = my / ml;          // 外向き法線
+    for (const s of offs){
+      const cx = R + nx * rm + tx * s, cy = R + ny * rm + ty * s;
+      const hl = (tabL - k) / 2, hw = (t - k) / 2;
+      slots.push(ptsPath([
+        [cx - tx * hl - nx * hw, cy - ty * hl - ny * hw],
+        [cx + tx * hl - nx * hw, cy + ty * hl - ny * hw],
+        [cx + tx * hl + nx * hw, cy + ty * hl + ny * hw],
+        [cx - tx * hl + nx * hw, cy - ty * hl + ny * hw],
+      ]));
+    }
+  }
+  const pieces = [];
+  pieces.push({ w: poly.W, h: poly.W, cut: [ptsPath(polyVerts(R, N, R, R)), ...slots], eng: [] });   // 底板
+  const topToo = poly.ring === "on";
+  if (topToo){
+    const rIn = (aW - t - 5) / Math.cos(Math.PI / N);
+    pieces.push({ w: poly.W, h: poly.W, cut: [ptsPath(polyVerts(R, N, R, R)), ptsPath(polyVerts(rIn, N, R, R)), ...slots], eng: [] });  // リング
+  }
+  const wallH = poly.Z + t + (topToo ? t : 0);
+  const nm = document.getElementById("polyName").value.trim();
+  for (let i = 0; i < N; i++){
+    const p = { w: Lw, h: wallH, cut: [tabbedWallPath(Lw, poly.Z, t, tabL, offs, topToo)], eng: [] };
+    if (i === 0 && nm){
+      const te = textEngraveLoops(nm, 3, Lw - 14, poly.Z - 16);
+      if (te) p.eng.push(loopsToPath(te.loops, te.cell, (Lw - te.w) / 2, (topToo ? t : 0) + (poly.Z - te.h) / 2));
+    }
+    pieces.push(p);
+  }
+  return pieces;
+}
+function renderPoly(){
+  const pieces = makePolyPieces();
+  const { ext, over } = renderPieces(pieces);
+  document.getElementById("stats").innerHTML =
+    "パーツ: " + pieces.length + "枚 ／ 配置サイズ: <b>" + ext.w.toFixed(0) + " × " + ext.h.toFixed(0) + " mm</b>" +
+    (over ? " <span class='warn'>⚠ 作業エリア(400×415)を超えています</span>" : "") +
+    "<br>" + Math.round(poly.n) + "角形 ／ さしわたし " + poly.W + "mm ／ 完成の高さ 約" + (poly.Z + poly.t + (poly.ring === "on" ? poly.t : 0)) + "mm ／ カーフ " + poly.kerf + "mm 補正済み";
+}
+function downloadPoly(){
+  downloadPieces(makePolyPieces(), "polybox_" + Math.round(poly.n) + "kaku_W" + poly.W + "_Z" + poly.Z + ".svg");
+}
+
+/* ==================================================================
+   📚 本立て（クロス差し込み型・タブレット/本スタンド）
+   同型プレート2枚に長い縦スロット。1枚は下から・1枚は上から。
+   直交に差し込むと十字にがっちり組み合い、写真のように自立。
+   前のリップが本止め、斜めの上辺が背もたれ。差し込みが深く強い。
+================================================================== */
+const book = { H: 175, D: 115, lip: 25, t: 3, kerf: 0.15 };
+
+const _f = v => v.toFixed(3);
+function bookPlatePath(topSlot){
+  const H = book.H, D = book.D, lip = book.lip, t = book.t, k = book.kerf;
+  const x0 = D * 0.6;                            // スロット位置（後方＝長く・強く）
+  const sw = t - k;                              // スロット幅（ピッタリ差し込み）
+  const yTopAt = x => lip + (H - lip) * (x / D); // 本を受ける上辺（前=低・後=高）
+  const yMid = yTopAt(x0) / 2;                   // スロットの底＝2枚の合わせ面
+  const rTop = Math.min(10, D * 0.12), rToe = Math.min(7, lip * 0.5);
+  const f = _f;
+  let d = `M${f(rToe)} 0`;                       // つま先の丸みの先から
+  if (!topSlot){                                 // 下辺（足）に下からの縦スロット
+    d += ` L${f(x0 - sw/2)} 0 L${f(x0 - sw/2)} ${f(yMid)} L${f(x0 + sw/2)} ${f(yMid)} L${f(x0 + sw/2)} 0`;
+  }
+  d += ` L${f(D)} 0 L${f(D)} ${f(H - rTop)}`;    // 足→背（縦）
+  d += ` A${f(rTop)} ${f(rTop)} 0 0 1 ${f(D - rTop)} ${f(H)}`;  // アーム頂点の丸み
+  if (topSlot){                                  // 上辺（背もたれ）に上からの縦スロット
+    d += ` L${f(x0 + sw/2)} ${f(yTopAt(x0 + sw/2))} L${f(x0 + sw/2)} ${f(yMid)}` +
+         ` L${f(x0 - sw/2)} ${f(yMid)} L${f(x0 - sw/2)} ${f(yTopAt(x0 - sw/2))}`;
+  }
+  d += ` L0 ${f(lip)} L0 ${f(rToe)}`;            // 上辺→前リップ→前を下る
+  d += ` A${f(rToe)} ${f(rToe)} 0 0 1 ${f(rToe)} 0 Z`;  // つま先の丸み
+  return d;
+}
+function makeBookPieces(){
+  return [
+    { w: book.D, h: book.H, cut: [bookPlatePath(false)], eng: [] },   // 下スロット板
+    { w: book.D, h: book.H, cut: [bookPlatePath(true)],  eng: [] },   // 上スロット板
+  ];
+}
+function renderBook(){
+  const pieces = makeBookPieces();
+  const { ext, over } = renderPieces(pieces);
+  const recline = Math.round(Math.atan2(book.D, book.H - book.lip) * 180 / Math.PI);
+  const x0 = book.D * 0.6, engage = Math.round((book.lip + (book.H - book.lip) * 0.6) / 2);
+  document.getElementById("stats").innerHTML =
+    "パーツ: 2枚（クロス差し込み・同型） ／ 配置サイズ: <b>" + ext.w.toFixed(0) + " × " + ext.h.toFixed(0) + " mm</b>" +
+    (over ? " <span class='warn'>⚠ 作業エリア(400×415)を超えています</span>" : "") +
+    "<br>本のかたむき 約" + recline + "°（垂直から）／ 差し込みの深さ " + engage + "mm ／ 本止め " + book.lip + "mm ／ カーフ " + book.kerf + "mm 補正済み";
+}
+function downloadBook(){
+  downloadPieces(makeBookPieces(), "bookstand_cross_H" + book.H + "_D" + book.D + ".svg");
+}
+
+/* ==================================================================
+   ☕ 写真コースター（画像を白黒/グレーに変換して焼き付け）
+   取り込んだ画像を、コースター形にマスクしてディザ（点々）or
+   グレースケール化 → PNGをSVGに埋め込み＋外形をカット。
+================================================================== */
+const coaster = { shape: "circle", size: 90, mode: "dither", bright: 0, contrast: 0,
+                  invert: "off", border: "on", t: 3, kerf: 0.15 };
+coaster._img = null;   // 読み込んだ Image
+coaster._url = null;   // 変換後PNGのdataURL
+
+function coasterHexVerts(S){
+  const R = S / 2, cx = S / 2, cy = S / 2, v = [];
+  for (let k = 0; k < 6; k++){ const a = Math.PI / 180 * (60 * k - 30); v.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]); }
+  return v;
+}
+function pointInPoly(x, y, vs){
+  let inside = false;
+  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++){
+    const xi = vs[i][0], yi = vs[i][1], xj = vs[j][0], yj = vs[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function coasterOutline(S){
+  if (coaster.shape === "circle") return circlePath(S / 2, S / 2, S / 2);
+  if (coaster.shape === "square")  return `M0 0 H${S} V${S} H0 Z`;
+  if (coaster.shape === "rounded") return roundedRect(S, S, S * 0.14);
+  const v = coasterHexVerts(S);
+  return "M" + v.map(p => p[0].toFixed(3) + " " + p[1].toFixed(3)).join(" L") + " Z";
+}
+function processCoaster(){
+  coaster._url = null;
+  if (!coaster._img) return;
+  const S = coaster.size, rim = coaster.border === "on" ? Math.min(6, S * 0.08) : 0;
+  const eng = S - 2 * rim;
+  const px = Math.max(200, Math.min(700, Math.round(eng * 6)));
+  const cv = document.createElement("canvas"); cv.width = px; cv.height = px;
+  const ctx = cv.getContext("2d");
+  const img = coaster._img;
+  const s = Math.max(px / img.width, px / img.height);   // cover fit
+  const dw = img.width * s, dh = img.height * s;
+  ctx.drawImage(img, (px - dw) / 2, (px - dh) / 2, dw, dh);
+  const id = ctx.getImageData(0, 0, px, px), d = id.data;
+  const c = coaster.contrast, cf = (259 * (c + 255)) / (255 * (259 - c));
+  const gray = new Float32Array(px * px);
+  for (let i = 0; i < px * px; i++){
+    let v = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
+    v = cf * (v - 128) + 128 + coaster.bright;
+    if (coaster.invert === "on") v = 255 - v;
+    gray[i] = Math.max(0, Math.min(255, v));
+  }
+  const hexPx = coasterHexVerts(px);
+  const inMask = (x, y) => {
+    if (coaster.shape === "circle") return (x - px/2)**2 + (y - px/2)**2 <= (px/2)**2;
+    if (coaster.shape === "hex") return pointInPoly(x + 0.5, y + 0.5, hexPx);
+    return true;
+  };
+  if (coaster.mode === "dither"){
+    for (let y = 0; y < px; y++) for (let x = 0; x < px; x++){
+      const i = y*px + x, old = gray[i], nw = old < 128 ? 0 : 255, err = old - nw;
+      gray[i] = nw;
+      if (x+1 < px) gray[i+1] += err*7/16;
+      if (y+1 < px){ if (x>0) gray[i+px-1] += err*3/16; gray[i+px] += err*5/16; if (x+1<px) gray[i+px+1] += err*1/16; }
+    }
+  }
+  for (let y = 0; y < px; y++) for (let x = 0; x < px; x++){
+    const i = y*px + x;
+    if (!inMask(x, y)){ d[i*4+3] = 0; continue; }
+    if (coaster.mode === "dither"){
+      if (gray[i] < 128){ d[i*4] = d[i*4+1] = d[i*4+2] = 0; d[i*4+3] = 255; }
+      else d[i*4+3] = 0;
+    } else {
+      const g = Math.round(gray[i]); d[i*4] = d[i*4+1] = d[i*4+2] = g; d[i*4+3] = 255;
+    }
+  }
+  ctx.putImageData(id, 0, 0);
+  coaster._url = cv.toDataURL("image/png");
+  coaster._rim = rim; coaster._eng = eng;
+}
+function coasterSVGBody(forCut){
+  const S = coaster.size, rim = coaster.border === "on" ? Math.min(6, S * 0.08) : 0, eng = S - 2 * rim;
+  const outline = coasterOutline(S);
+  let s = "";
+  if (coaster._url){
+    const href = forCut ? `xlink:href="${coaster._url}" href="${coaster._url}"` : `href="${coaster._url}"`;
+    s += `<image ${href} x="${rim}" y="${rim}" width="${eng}" height="${eng}" preserveAspectRatio="none"/>`;
+  }
+  const path = forCut
+    ? `<path d="${outline}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`
+    : `<path d="${outline}" fill="#c9a86a" stroke="#e11" stroke-width="0.3"/>`;
+  return forCut ? s + "\n" + path : path + s;   // プレビューは木色の下地→画像を上に
+}
+function renderCoaster(){
+  processCoaster();
+  const S = coaster.size;
+  document.getElementById("svgWrap").innerHTML =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 ${S+8} ${S+8}">` +
+    coasterSVGBody(false) +
+    (coaster._url ? "" : `<text x="${S/2}" y="${S/2}" font-size="${S*0.07}" fill="#5d6b78" text-anchor="middle" dominant-baseline="middle" font-weight="700">画像を選んでください</text>`) +
+    `</svg>`;
+  const over = S > BED.w || S > BED.h;
+  document.getElementById("stats").innerHTML =
+    (coaster._img ? "写真コースター: " : "<span class='warn'>画像を選んでください</span> ／ ") +
+    "<b>" + S + " × " + S + " mm</b>（" + { circle:"丸", rounded:"角丸", square:"四角", hex:"六角" }[coaster.shape] + "）" +
+    (over ? " <span class='warn'>⚠ 作業エリアを超えています</span>" : "") +
+    "<br>" + (coaster.mode === "dither" ? "点々（ディザ）" : "グレー") + "／ 赤＝外形カット、画像＝焼き付け ／ LightBurnで画像をImageモードに";
+}
+function downloadCoaster(){
+  if (!coaster._url){ flashMsg && flashMsg("先に画像を選んでください", true); alert("先に画像を選んでください"); return; }
+  const S = coaster.size;
+  const svg =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+    `width="${S}mm" height="${S}mm" viewBox="0 0 ${S} ${S}">\n` +
+    coasterSVGBody(true) + `\n</svg>`;
+  saveSVG(svg, "coaster_" + coaster.shape + "_" + S + "mm.svg");
+}
+
+/* ==================================================================
+   🏮 切り絵行灯（画像→連結を保証した切り絵→カット/JPEG）
+   離れ小島は最短の橋で本体へ自動連結、極小ノイズは除去、細線は
+   モルフォロジで太らせる。黒＝残す（1枚に連結）、白＝切り抜く穴。
+================================================================== */
+const andon = { W: 120, H: 150, thresh: 128, invert: "off", detail: 130,
+                smooth: 1, noise: 2, bridge: 2.0, frame: 6, t: 3, kerf: 0.15 };
+andon._img = null; andon._grid = null; andon._nx = 0; andon._ny = 0; andon._cx = 0; andon._cy = 0;
+
+function _erode(g, nx, ny){
+  const o = new Uint8Array(nx * ny);
+  for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++){
+    const i = y*nx + x;
+    if (g[i]){
+      const l = x>0?g[i-1]:g[i], r = x<nx-1?g[i+1]:g[i], u = y>0?g[i-nx]:g[i], d = y<ny-1?g[i+nx]:g[i];
+      o[i] = (l && r && u && d) ? 1 : 0;
+    }
+  }
+  return o;
+}
+function _dilate(g, nx, ny){
+  const o = new Uint8Array(nx * ny);
+  for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++){
+    const i = y*nx + x;
+    if (g[i]) o[i] = 1;
+    else {
+      const l = x>0?g[i-1]:0, r = x<nx-1?g[i+1]:0, u = y>0?g[i-nx]:0, d = y<ny-1?g[i+nx]:0;
+      o[i] = (l || r || u || d) ? 1 : 0;
+    }
+  }
+  return o;
+}
+const _NB = [[1,0],[-1,0],[0,1],[0,-1]];
+function _removeSmall(g, nx, ny, val, minA){
+  const seen = new Uint8Array(nx * ny), st = [];
+  for (let i0 = 0; i0 < nx*ny; i0++){
+    if (seen[i0] || g[i0] !== val) continue;
+    st.length = 0; st.push(i0); seen[i0] = 1; const cells = [i0];
+    while (st.length){
+      const p = st.pop(), x = p % nx, y = (p / nx) | 0;
+      for (const [dx,dy] of _NB){ const ax=x+dx, ay=y+dy; if (ax>=0&&ay>=0&&ax<nx&&ay<ny){ const ni=ay*nx+ax; if (!seen[ni] && g[ni]===val){ seen[ni]=1; st.push(ni); cells.push(ni); } } }
+    }
+    if (cells.length < minA){ const nv = val ? 0 : 1; for (const c of cells) g[c] = nv; }
+  }
+}
+function _floodConn(g, nx, ny){
+  const conn = new Uint8Array(nx * ny), st = [];
+  const push = i => { if (g[i] && !conn[i]){ conn[i] = 1; st.push(i); } };
+  for (let x = 0; x < nx; x++){ push(x); push((ny-1)*nx + x); }
+  for (let y = 0; y < ny; y++){ push(y*nx); push(y*nx + nx - 1); }
+  if (st.length === 0){                                   // 枠が黒でなければ最大の島を本体に
+    const seen = new Uint8Array(nx*ny), s2 = []; let best = null, bestA = 0;
+    for (let i0 = 0; i0 < nx*ny; i0++){
+      if (seen[i0] || !g[i0]) continue;
+      s2.length = 0; s2.push(i0); seen[i0] = 1; const cc = [i0];
+      while (s2.length){ const p = s2.pop(), x = p%nx, y = (p/nx)|0; for (const [dx,dy] of _NB){ const ax=x+dx, ay=y+dy; if (ax>=0&&ay>=0&&ax<nx&&ay<ny){ const ni=ay*nx+ax; if (!seen[ni] && g[ni]){ seen[ni]=1; s2.push(ni); cc.push(ni); } } } }
+      if (cc.length > bestA){ bestA = cc.length; best = cc; }
+    }
+    if (best) for (const c of best){ conn[c] = 1; st.push(c); }
+  }
+  while (st.length){ const p = st.pop(), x = p%nx, y = (p/nx)|0; for (const [dx,dy] of _NB){ const ax=x+dx, ay=y+dy; if (ax>=0&&ay>=0&&ax<nx&&ay<ny){ const ni=ay*nx+ax; if (g[ni] && !conn[ni]){ conn[ni]=1; st.push(ni); } } } }
+  return conn;
+}
+function _connectAll(g, nx, ny, bw){
+  for (let guard = 0; guard < 400; guard++){
+    const conn = _floodConn(g, nx, ny);
+    const par = new Int32Array(nx * ny).fill(-2), q = []; let head = 0;
+    for (let i = 0; i < nx*ny; i++) if (conn[i]){ par[i] = -1; q.push(i); }
+    if (q.length === 0) return;
+    let target = -1;
+    while (head < q.length){
+      const p = q[head++];
+      if (g[p] && !conn[p]){ target = p; break; }
+      const x = p%nx, y = (p/nx)|0;
+      for (const [dx,dy] of _NB){ const ax=x+dx, ay=y+dy; if (ax>=0&&ay>=0&&ax<nx&&ay<ny){ const ni=ay*nx+ax; if (par[ni]===-2){ par[ni]=p; q.push(ni); } } }
+    }
+    if (target < 0) return;
+    let p = target;
+    while (p >= 0 && !conn[p]){
+      const x = p%nx, y = (p/nx)|0;
+      for (let ddy=-bw; ddy<=bw; ddy++) for (let ddx=-bw; ddx<=bw; ddx++){ const ax=x+ddx, ay=y+ddy; if (ax>=0&&ay>=0&&ax<nx&&ay<ny) g[ay*nx+ax] = 1; }
+      p = par[p];
+    }
+  }
+}
+function andonGrid(){   // W:H に合わせた格子サイズ（セルはほぼ正方形）
+  const W = andon.W, H = andon.H, det = Math.round(andon.detail);
+  let nx, ny;
+  if (W >= H){ nx = det; ny = Math.max(20, Math.round(det * H / W)); }
+  else { ny = det; nx = Math.max(20, Math.round(det * W / H)); }
+  return { nx, ny, cell: Math.max(W, H) / det };
+}
+function processAndon(){
+  andon._grid = null;
+  if (!andon._img) return;
+  const W = andon.W, H = andon.H, { nx, ny, cell } = andonGrid();
+  const cv = document.createElement("canvas"); cv.width = nx; cv.height = ny;
+  const ctx = cv.getContext("2d");
+  const img = andon._img, s = Math.max(nx / img.width, ny / img.height);   // cover fit
+  const dw = img.width * s, dh = img.height * s;
+  ctx.drawImage(img, (nx - dw) / 2, (ny - dh) / 2, dw, dh);
+  const dat = ctx.getImageData(0, 0, nx, ny).data;
+  let g = new Uint8Array(nx * ny);
+  const inv = andon.invert === "on";
+  for (let i = 0; i < nx*ny; i++){
+    const lum = 0.299*dat[i*4] + 0.587*dat[i*4+1] + 0.114*dat[i*4+2];
+    let black = lum < andon.thresh;
+    if (inv) black = !black;
+    g[i] = black ? 1 : 0;
+  }
+  const k = Math.round(andon.smooth);
+  for (let it = 0; it < k; it++) g = _dilate(_erode(g, nx, ny), nx, ny);   // open（点・細突起を除去）
+  for (let it = 0; it < k; it++) g = _erode(_dilate(g, nx, ny), nx, ny);   // close（穴・すき間を埋める）
+  const fr = Math.max(0, Math.round(andon.frame / cell));
+  if (fr > 0) for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++){ if (x<fr || y<fr || x>=nx-fr || y>=ny-fr) g[y*nx+x] = 1; }
+  const minA = Math.max(3, Math.round((andon.noise / cell) ** 2));
+  _removeSmall(g, nx, ny, 1, minA);   // 小さな黒＝離れ小島ノイズを消す
+  _removeSmall(g, nx, ny, 0, minA);   // 小さな白＝意味のない穴を埋める
+  const bw = Math.max(1, Math.floor((andon.bridge / cell) / 2));
+  _connectAll(g, nx, ny, bw);         // 残った離れ小島を最短の橋で本体へ連結
+  andon._grid = g; andon._nx = nx; andon._ny = ny; andon._cx = W / nx; andon._cy = H / ny;
+}
+function andonBitmapURL(bw){
+  const nx = andon._nx, ny = andon._ny, g = andon._grid;
+  const sc = Math.max(2, Math.min(6, Math.round(560 / Math.max(nx, ny))));
+  const cv = document.createElement("canvas"); cv.width = nx * sc; cv.height = ny * sc;
+  const ctx = cv.getContext("2d");
+  if (bw){ ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, nx*sc, ny*sc); }
+  ctx.fillStyle = "#000";
+  for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++){ if (g[y*nx+x]) ctx.fillRect(x*sc, y*sc, sc, sc); }
+  return bw ? cv.toDataURL("image/jpeg", 0.92) : cv.toDataURL("image/png");
+}
+function renderAndon(){
+  clearTimeout(renderAndon._t);
+  const W = andon.W, H = andon.H;
+  if (!andon._img){
+    document.getElementById("svgWrap").innerHTML =
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 ${W+8} ${H+8}"><rect x="0" y="0" width="${W}" height="${H}" rx="3" fill="#ffc23d"/>` +
+      `<text x="${W/2}" y="${H/2}" font-size="${Math.min(W,H)*0.06}" fill="#7a5a10" text-anchor="middle" dominant-baseline="middle" font-weight="700">画像を選んでください</text></svg>`;
+    document.getElementById("stats").innerHTML = "<span class='warn'>画像を選んでください</span>";
+    return;
+  }
+  document.getElementById("stats").innerHTML = "切り絵を計算中…";
+  renderAndon._t = setTimeout(() => {
+    processAndon();
+    const url = andonBitmapURL(false);
+    document.getElementById("svgWrap").innerHTML =
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 ${W+8} ${H+8}">` +
+      `<rect x="0" y="0" width="${W}" height="${H}" rx="3" fill="#ffc23d"/>` +
+      `<image href="${url}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/></svg>`;
+    const over = W > BED.w || H > BED.h;
+    document.getElementById("stats").innerHTML =
+      "切り絵の面: <b>" + W + " × " + H + " mm</b>（よこ×たて）" +
+      (over ? " <span class='warn'>⚠ 作業エリアを超えています</span>" : "") +
+      "<br>黒＝残す（厚紙で切り抜く部分・すべてつながっています）、白＝抜く／のりしろ枠 " + andon.frame + "mm・橋 " + andon.bridge + "mm";
+  }, 160);
+}
+function downloadAndon(){
+  processAndon();
+  if (!andon._grid){ alert("先に画像を選んでください"); return; }
+  const nx = andon._nx, ny = andon._ny, cx = andon._cx, cy = andon._cy;
+  const loops = traceOutlines((c, r) => andon._grid[r*nx+c], nx, ny).map(mergeCollinear);
+  let d = "";
+  for (const pts of loops){
+    if (pts.length < 4) continue;
+    d += "M" + pts.map(p => (p[0]*cx).toFixed(3) + " " + (p[1]*cy).toFixed(3)).join(" L") + " Z ";
+  }
+  const W = andon.W, H = andon.H;
+  const svg =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">\n` +
+    `<path d="${d.trim()}" fill="none" stroke="#ff0000" stroke-width="0.1"/>\n</svg>`;
+  saveSVG(svg, "kirie_" + W + "x" + H + "mm.svg");
+}
+function downloadAndonJPEG(){
+  processAndon();
+  if (!andon._grid){ alert("先に画像を選んでください"); return; }
+  const url = andonBitmapURL(true);
+  const who = (document.getElementById("authorIn").value || "").trim().replace(/[\\\/:*?"<>|\s]+/g, "_");
+  const a = document.createElement("a");
+  a.href = url; a.download = "kirie_" + andon.W + "x" + andon.H + "mm" + (who ? "_" + who : "") + ".jpg";
+  a.click();
+}
+
+/* ==================================================================
+   UI 共通
+================================================================== */
+const RENDERERS = { box: renderBox, poly: renderPoly, dot: renderDot, gear: renderGear, stand: renderStand, book: renderBook, coaster: renderCoaster, andon: renderAndon, tray: renderTray, ruler: renderRuler };
+const DOWNLOADERS = { box: downloadBox, poly: downloadPoly, dot: downloadDot, gear: downloadGear, stand: downloadStand, book: downloadBook, coaster: downloadCoaster, andon: downloadAndon, tray: downloadTray, ruler: downloadRuler };
+const PANELS = { box: "boxControls", poly: "polyControls", dot: "dotControls", gear: "gearControls", stand: "standControls", book: "bookControls", coaster: "coasterControls", andon: "andonControls", tray: "trayControls", ruler: "rulerControls" };
+function render(){ RENDERERS[app.mode](); }
+
+document.getElementById("dl").addEventListener("click", () => DOWNLOADERS[app.mode]());
+
+function bindNumber(id, key){
+  const el = document.getElementById(id);
+  el.addEventListener("input", () => {
+    const v = parseFloat(el.value);
+    if (isFinite(v) && v > 0){ state[key] = v; render(); }
+  });
+}
+bindNumber("inX", "X");
+bindNumber("inY", "Y");
+bindNumber("inZ", "Z");
+
+const UI_SLIDERS = [], UI_SEGS = [];   // 作品コード読込時にUIを同期するための登録簿
+function slider(parent, obj, key, label, min, max, step, unit, onChange){
+  const div = document.createElement("div");
+  div.className = "grp";
+  div.innerHTML = "<label>" + label + "<span class='val'></span></label>";
+  const inp = document.createElement("input");
+  inp.type = "range"; inp.min = min; inp.max = max; inp.step = step; inp.value = obj[key];
+  const val = div.querySelector(".val");
+  const show = () => val.textContent = obj[key] + " " + unit;
+  inp.addEventListener("input", () => {
+    const old = obj[key];
+    obj[key] = parseFloat(inp.value);
+    show();
+    if (onChange) onChange(old);
+    render();
+  });
+  show();
+  div.appendChild(inp);
+  parent.appendChild(div);
+  UI_SLIDERS.push({ inp, obj, key, show });
+}
+const $s = document.getElementById("sliders");
+slider($s, state, "t", "板の厚み", 2, 6, 0.1, "mm");
+slider($s, state, "kerf", "カーフ（切りしろ）", 0.05, 0.3, 0.01, "mm");
+slider($s, state, "finger", "フィンガー幅（目安）", 6, 25, 1, "mm");
+
+const $g = document.getElementById("gearSliders");
+slider($g, gear, "m", "歯の大きさ（モジュール）", 2, 4, 0.5, "");
+slider($g, gear, "z1", "歯車Aの歯数", 8, 40, 1, "枚");
+slider($g, gear, "z2", "歯車Bの歯数", 8, 40, 1, "枚");
+slider($g, gear, "z3", "歯車Cの歯数（3枚目あり時）", 8, 40, 1, "枚");
+const $g2 = document.getElementById("gearSliders2");
+slider($g2, gear, "axle", "軸穴の直径（M4ボルト→4.5）", 3, 8, 0.5, "mm");
+slider($g2, gear, "backlash", "かみ合いのあそび", 0.1, 0.4, 0.05, "mm");
+
+const $t = document.getElementById("standSliders");
+slider($t, stand, "tilt", "ねかせる角度", 15, 35, 1, "°");
+slider($t, stand, "width", "スタンドの幅（内側）", 40, 100, 5, "mm");
+slider($t, stand, "len", "背もたれの長さ", 90, 140, 5, "mm");
+slider($t, stand, "phone", "スマホの厚み（ケース込み）", 9, 20, 0.5, "mm");
+slider($t, stand, "lip", "ストッパーの高さ", 8, 25, 1, "mm");
+const $t2 = document.getElementById("standSliders2");
+slider($t2, stand, "t", "板の厚み", 2, 6, 0.1, "mm");
+slider($t2, stand, "kerf", "カーフ（切りしろ）", 0.05, 0.3, 0.01, "mm");
+document.getElementById("standName").addEventListener("input", () => {
+  if (app.mode === "stand") render();
+});
+
+const $y = document.getElementById("traySliders");
+slider($y, tray, "X", "幅 X", 60, 380, 5, "mm");
+slider($y, tray, "Y", "奥行 Y", 40, 380, 5, "mm");
+slider($y, tray, "Z", "高さ Z", 20, 80, 1, "mm");
+const $y2 = document.getElementById("traySliders2");
+slider($y2, tray, "nx", "よこの部屋数", 1, 6, 1, "室");
+slider($y2, tray, "ny", "たての部屋数", 1, 4, 1, "室");
+const $y3 = document.getElementById("traySliders3");
+slider($y3, tray, "t", "板の厚み", 2, 6, 0.1, "mm");
+slider($y3, tray, "kerf", "カーフ（切りしろ）", 0.05, 0.3, 0.01, "mm");
+slider($y3, tray, "finger", "フィンガー幅（目安）", 6, 25, 1, "mm");
+document.getElementById("trayName").addEventListener("input", () => {
+  if (app.mode === "tray") render();
+});
+
+const $pl = document.getElementById("polySliders");
+slider($pl, poly, "n", "かどの数", 5, 8, 1, "角");
+slider($pl, poly, "W", "さしわたし（対角の直径）", 50, 200, 5, "mm");
+slider($pl, poly, "Z", "高さ", 20, 120, 5, "mm");
+const $pl2 = document.getElementById("polySliders2");
+slider($pl2, poly, "t", "板の厚み", 2, 6, 0.1, "mm");
+slider($pl2, poly, "kerf", "カーフ（切りしろ）", 0.05, 0.3, 0.01, "mm");
+document.getElementById("polyName").addEventListener("input", () => {
+  if (app.mode === "poly") render();
+});
+
+const $bk = document.getElementById("bookSliders");
+slider($bk, book, "H", "高さ（背の高さ）", 120, 240, 5, "mm");
+slider($bk, book, "D", "奥行き（脚の長さ）", 80, 160, 5, "mm");
+slider($bk, book, "lip", "本止め（前の立ち上がり）", 15, 45, 1, "mm");
+const $bk2 = document.getElementById("bookSliders2");
+slider($bk2, book, "t", "板の厚み", 2, 6, 0.1, "mm");
+slider($bk2, book, "kerf", "カーフ（切りしろ）", 0.05, 0.3, 0.01, "mm");
+
+const $co = document.getElementById("coasterSliders");
+slider($co, coaster, "size", "大きさ（さしわたし）", 70, 120, 5, "mm");
+const $co2 = document.getElementById("coasterSliders2");
+slider($co2, coaster, "bright", "明るさ", -100, 100, 5, "");
+slider($co2, coaster, "contrast", "コントラスト", -100, 100, 5, "");
+const $co3 = document.getElementById("coasterSliders3");
+slider($co3, coaster, "t", "板の厚み", 2, 6, 0.1, "mm");
+slider($co3, coaster, "kerf", "カーフ（切りしろ）", 0.05, 0.3, 0.01, "mm");
+document.getElementById("coasterFile").addEventListener("change", e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const im = new Image();
+    im.onload = () => { coaster._img = im; if (app.mode === "coaster") render(); };
+    im.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+const $an = document.getElementById("andonSliders");
+slider($an, andon, "W", "よこ幅", 60, 360, 5, "mm");
+slider($an, andon, "H", "たて高さ", 60, 360, 5, "mm");
+slider($an, andon, "thresh", "白黒のしきい値", 60, 200, 5, "");
+slider($an, andon, "detail", "こまかさ（解像度）", 90, 180, 10, "");
+const $an2 = document.getElementById("andonSliders2");
+slider($an2, andon, "smooth", "なめらかさ（細線を太らせる）", 0, 3, 1, "");
+slider($an2, andon, "noise", "ノイズ除去（この大きさ未満を消す）", 0.5, 6, 0.5, "mm");
+slider($an2, andon, "bridge", "橋の太さ（離れ小島をつなぐ）", 1, 5, 0.5, "mm");
+const $an3 = document.getElementById("andonSliders3");
+slider($an3, andon, "frame", "のりしろ枠のはば（枠に貼る余白）", 0, 20, 1, "mm");
+slider($an3, andon, "t", "板の厚み", 2, 6, 0.1, "mm");
+slider($an3, andon, "kerf", "カーフ（切りしろ）", 0.05, 0.3, 0.01, "mm");
+document.getElementById("andonFile").addEventListener("change", e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const im = new Image();
+    im.onload = () => { andon._img = im; if (app.mode === "andon") render(); };
+    im.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById("andonJpg").addEventListener("click", downloadAndonJPEG);
+
+const $r = document.getElementById("rulerSliders");
+slider($r, ruler, "len", "定規の長さ（直線定規）", 100, 300, 10, "mm");
+slider($r, ruler, "wid", "定規のはば（直線定規）", 20, 40, 1, "mm");
+slider($r, ruler, "r", "半径（分度器）", 45, 80, 5, "mm");
+document.getElementById("rulerName").addEventListener("input", () => {
+  if (app.mode === "ruler") render();
+});
+
+const $d = document.getElementById("dotSliders");
+slider($d, dot, "cols", "よこのマス数", 8, 32, 1, "マス", old => remapCells(dot.cells, old, dot.rows));
+slider($d, dot, "rows", "たてのマス数", 8, 32, 1, "マス", old => remapCells(dot.cells, dot.cols, old));
+slider($d, dot, "cell", "1マスの大きさ", 1.5, 5, 0.25, "mm");
+slider($d, dot, "frame", "ふちの余白", 2, 8, 0.5, "mm");
+slider($d, dot, "corner", "角丸", 0, 8, 0.5, "mm");
+slider(document.getElementById("holeSlider"), dot, "holeD", "穴の直径", 3, 6, 0.5, "mm");
+
+function segBind(id, obj, key, onChange){
+  const seg = document.getElementById(id);
+  seg.querySelectorAll("button").forEach(b => {
+    if (b.dataset.v === String(obj[key])) {
+      seg.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+    }
+    b.addEventListener("click", () => {
+      seg.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      obj[key] = b.dataset.v;
+      if (onChange) onChange();
+      render();
+    });
+  });
+  UI_SEGS.push({ id, obj, key, onChange });
+}
+segBind("refSeg", state, "ref");
+segBind("lidSeg", state, "lid");
+segBind("toolSeg", dot, "tool", () => {
+  document.getElementById("textGrp").style.display = dot.tool === "text" ? "" : "none";
+});
+segBind("mirrorSeg", dot, "mirror");
+segBind("holeSeg", dot, "hole");
+segBind("outSeg", dot, "out");
+segBind("thirdSeg", gear, "third");
+segBind("crankSeg", gear, "crank");
+segBind("rulerKindSeg", ruler, "kind");
+segBind("rulerHoleSeg", ruler, "hole");
+segBind("ringSeg", poly, "ring");
+segBind("coasterShapeSeg", coaster, "shape");
+segBind("coasterModeSeg", coaster, "mode");
+segBind("coasterInvSeg", coaster, "invert");
+segBind("coasterBorderSeg", coaster, "border");
+segBind("andonInvSeg", andon, "invert");
+document.getElementById("textGrp").style.display = dot.tool === "text" ? "" : "none";
+
+// モード切り替えタブ
+document.querySelectorAll("#modeBar button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("#modeBar button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    app.mode = b.dataset.m;
+    for (const m in PANELS)
+      document.getElementById(PANELS[m]).style.display = app.mode === m ? "" : "none";
+    document.getElementById("bedNote").style.display = app.mode === "dot" ? "none" : "";
+    render();
+  });
+});
+
+/* ==================================================================
+   作品コード（先生への提出用）
+   全設定＋名前＋ドット絵データを1つの文字列に。Classroom/Formsに
+   貼って提出でき、貼り付ければ同じ作品を完全に再現できる。
+================================================================== */
+function refreshUI(){
+  for (const s of UI_SLIDERS){ s.inp.value = s.obj[s.key]; s.show(); }
+  for (const g of UI_SEGS){
+    const seg = document.getElementById(g.id);
+    seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === String(g.obj[g.key])));
+    if (g.onChange) g.onChange();
+  }
+}
+function modeData(){
+  switch (app.mode){
+    case "box":   return { ...state };
+    case "dot":   return { cols: dot.cols, rows: dot.rows, cell: dot.cell, frame: dot.frame, corner: dot.corner,
+                           hole: dot.hole, holeD: dot.holeD, out: dot.out, px: Array.from(dot.cells).join("") };
+    case "gear":  return { ...gear };
+    case "poly":  return { ...poly, name: document.getElementById("polyName").value };
+    case "book":  return { ...book };
+    case "coaster": return { shape: coaster.shape, size: coaster.size, mode: coaster.mode,
+                             bright: coaster.bright, contrast: coaster.contrast,
+                             invert: coaster.invert, border: coaster.border, t: coaster.t, kerf: coaster.kerf };
+    case "andon": return { W: andon.W, H: andon.H, thresh: andon.thresh, invert: andon.invert, detail: andon.detail,
+                           smooth: andon.smooth, noise: andon.noise, bridge: andon.bridge, frame: andon.frame, t: andon.t, kerf: andon.kerf };
+    case "stand": return { ...stand, name: document.getElementById("standName").value };
+    case "tray":  return { ...tray, name: document.getElementById("trayName").value };
+    case "ruler": return { ...ruler, name: document.getElementById("rulerName").value };
+  }
+}
+function applyModeData(m, s){
+  if (m === "box"){
+    Object.assign(state, s);
+    for (const k of ["X", "Y", "Z"]) document.getElementById("in" + k).value = state[k];
+  }
+  if (m === "dot"){
+    for (const k of ["cols", "rows", "cell", "frame", "corner", "hole", "holeD", "out"])
+      if (s[k] !== undefined) dot[k] = s[k];
+    dot.cells = (typeof s.px === "string" && s.px.length === dot.cols * dot.rows)
+      ? Uint8Array.from(s.px, ch => ch === "1" ? 1 : 0)
+      : new Uint8Array(dot.cols * dot.rows);
+    undoStack.length = 0;
+  }
+  if (m === "gear")  Object.assign(gear, s);
+  if (m === "poly"){  const { name, ...rest } = s; Object.assign(poly, rest);  document.getElementById("polyName").value = name || ""; }
+  if (m === "book")  Object.assign(book, s);
+  if (m === "coaster") Object.assign(coaster, s);   // 画像は復元されない（各自で選び直し）
+  if (m === "andon")   Object.assign(andon, s);     // 画像は復元されない
+  if (m === "stand"){ const { name, ...rest } = s; Object.assign(stand, rest); document.getElementById("standName").value = name || ""; }
+  if (m === "tray"){  const { name, ...rest } = s; Object.assign(tray, rest);  document.getElementById("trayName").value = name || ""; }
+  if (m === "ruler"){ const { name, ...rest } = s; Object.assign(ruler, rest); document.getElementById("rulerName").value = name || ""; }
+}
+function currentCode(){
+  const obj = { v: 1, m: app.mode, n: document.getElementById("authorIn").value.trim(), s: modeData() };
+  return "LK1." + btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+}
+function applyCode(str){
+  try {
+    const i = (str || "").indexOf("LK1.");
+    if (i < 0) return { ok: false, msg: "「LK1.」で始まる作品コードを貼り付けてください" };
+    const obj = JSON.parse(decodeURIComponent(escape(atob(str.slice(i + 4).replace(/\s+/g, "")))));
+    if (!obj || !PANELS[obj.m]) return { ok: false, msg: "不明な作品タイプです" };
+    applyModeData(obj.m, obj.s || {});
+    document.getElementById("authorIn").value = obj.n || "";
+    app.mode = obj.m;
+    document.querySelectorAll("#modeBar button").forEach(x => x.classList.toggle("on", x.dataset.m === obj.m));
+    for (const m in PANELS) document.getElementById(PANELS[m]).style.display = app.mode === m ? "" : "none";
+    document.getElementById("bedNote").style.display = app.mode === "dot" ? "none" : "";
+    refreshUI();
+    render();
+    return { ok: true, msg: (obj.n ? obj.n + " さんの作品を読み込みました ✓" : "作品を読み込みました ✓") };
+  } catch (e){
+    return { ok: false, msg: "読み込めませんでした（コードが欠けているかも）" };
+  }
+}
+const shareMsg = document.getElementById("shareMsg");
+function flashMsg(m, err){
+  shareMsg.textContent = m;
+  shareMsg.style.color = err ? "#d33" : "";
+  clearTimeout(flashMsg.t);
+  flashMsg.t = setTimeout(() => { shareMsg.textContent = ""; }, 7000);
+}
+function fallbackCopy(t, done){
+  const ta = document.createElement("textarea");
+  ta.value = t;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  ta.remove();
+  done();
+}
+document.getElementById("copyCode").addEventListener("click", () => {
+  const code = currentCode();
+  const done = () => flashMsg(document.getElementById("authorIn").value.trim()
+    ? "コピーしました ✓ そのまま提出フォームに貼り付けOK"
+    : "コピーしました ✓（なまえも入れておくと先生に伝わりやすいよ）");
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done));
+  } else fallbackCopy(code, done);
+});
+document.getElementById("loadBtn").addEventListener("click", () => {
+  const r = applyCode(document.getElementById("codeIn").value);
+  flashMsg(r.msg, !r.ok);
+  if (r.ok) document.getElementById("codeIn").value = "";
+});
+
+render();
+// URLの#にコードが付いていたら復元（リンク共有用）
+if (location.hash && location.hash.indexOf("LK1.") >= 0){
+  applyCode(decodeURIComponent(location.hash));
+}
+</script>
+</body>
+</html>

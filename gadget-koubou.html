@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ガジェット工房 — STLジェネレーター</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --ink:#1b2733;
+    --bg:#eef2f5;
+    --panel:#ffffff;
+    --line:#d7dee5;
+    --accent:#ff6b35;      /* safety orange = フィラメント色 */
+    --accent-dk:#e35a27;
+    --teal:#0fa3a3;
+    --sub:#5d6b78;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;
+    background:var(--bg); color:var(--ink);
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  header{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 18px; background:var(--ink); color:#fff; flex:0 0 auto;
+  }
+  header .logo{
+    width:30px;height:30px;border-radius:8px;background:var(--accent);
+    display:grid;place-items:center;font-weight:900;font-size:16px;color:#fff;
+  }
+  header h1{font-size:16px; font-weight:800; letter-spacing:.08em;}
+  header .tag{font-size:11px; color:#aebbc7; letter-spacing:.05em;}
+  header a.sis{
+    margin-left:auto; color:#7fd8d8; font-size:12px; font-weight:700; text-decoration:none;
+    border:1px solid #4a5a68; border-radius:999px; padding:5px 12px;
+  }
+  header a.sis:hover{background:#2a3947;}
+  main{flex:1 1 auto; display:flex; min-height:0;}
+  /* ---- 左パネル ---- */
+  #panel{
+    width:340px; flex:0 0 auto; background:var(--panel);
+    border-right:1px solid var(--line);
+    display:flex; flex-direction:column; min-height:0;
+    overflow-y:auto;                      /* パネル全体でスクロール（スライダーが潰れない） */
+  }
+  #tabs{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:10px 10px 0; flex:0 0 auto;}
+  .tab{
+    flex:1; border:2px solid var(--line); border-radius:10px; background:#fff;
+    padding:6px 2px 5px; cursor:pointer; text-align:center;
+    font-size:10px; font-weight:700; color:var(--sub); line-height:1.35;
+    transition:border-color .15s, color .15s, transform .1s;
+  }
+  .tab .ico{font-size:16px; display:block; margin-bottom:2px;}
+  .tab:hover{transform:translateY(-1px);}
+  .tab.on{border-color:var(--accent); color:var(--ink); background:#fff7f3;}
+  .tab:focus-visible{outline:3px solid var(--teal); outline-offset:2px;}
+  #controls{flex:0 0 auto; padding:12px 16px 14px;}
+  .grp{margin-bottom:16px;}
+  .grp label{display:flex; justify-content:space-between; font-size:12.5px; font-weight:700; margin-bottom:5px;}
+  .grp label .val{color:var(--accent-dk); font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%; accent-color:var(--accent); height:26px; cursor:pointer;}
+  input[type=text]{
+    width:100%; padding:10px 12px; font-size:16px; font-weight:700;
+    border:2px solid var(--line); border-radius:10px; font-family:inherit;
+  }
+  input[type=text]:focus{outline:none; border-color:var(--teal);}
+  .hint{font-size:11px; color:var(--sub); margin-top:4px; line-height:1.5;}
+  .seg{display:flex; gap:6px;}
+  .seg button{
+    flex:1; padding:7px 0; font-size:12px; font-weight:700; font-family:inherit;
+    border:2px solid var(--line); border-radius:9px; background:#fff; color:var(--sub); cursor:pointer;
+  }
+  .seg button.on{border-color:var(--teal); color:var(--ink); background:#f0fafa;}
+  .swatches{display:flex; gap:8px; flex-wrap:wrap;}
+  .sw{
+    width:30px; height:30px; border-radius:50%; cursor:pointer;
+    border:3px solid transparent; box-shadow:0 1px 3px rgba(0,0,0,.25);
+  }
+  .sw.on{border-color:var(--ink);}
+  .sec-title{
+    font-size:11px; font-weight:800; letter-spacing:.14em; color:var(--sub);
+    margin:18px 0 8px; text-transform:uppercase;
+  }
+  /* ---- ビューポート ---- */
+  #stage{flex:1; position:relative; min-width:0;}
+  #view{position:absolute; inset:0; touch-action:none; cursor:grab;}
+  #view:active{cursor:grabbing;}
+  #dims{
+    position:absolute; left:14px; top:12px;
+    background:rgba(27,39,51,.85); color:#fff; border-radius:10px;
+    padding:8px 12px; font-size:12px; line-height:1.7; pointer-events:none;
+    font-variant-numeric:tabular-nums;
+  }
+  #dims .warn{color:#ffb08a; font-weight:700;}
+  #plateNote{
+    position:absolute; right:14px; top:12px;
+    background:rgba(255,255,255,.85); border:1px solid var(--line); border-radius:10px;
+    padding:6px 10px; font-size:11px; color:var(--sub); pointer-events:none;
+  }
+  /* ---- フッター ---- */
+  footer{
+    flex:0 0 auto; display:flex; align-items:center; gap:14px;
+    padding:12px 18px; background:var(--panel); border-top:1px solid var(--line);
+  }
+  #stats{font-size:12px; color:var(--sub); line-height:1.5;}
+  #dl{
+    margin-left:auto; border:none; cursor:pointer; font-family:inherit;
+    background:var(--accent); color:#fff; font-size:15px; font-weight:800;
+    padding:13px 26px; border-radius:999px; letter-spacing:.05em;
+    box-shadow:0 4px 0 var(--accent-dk); transition:transform .08s, box-shadow .08s;
+  }
+  #dl:hover{filter:brightness(1.05);}
+  #dl:active{transform:translateY(3px); box-shadow:0 1px 0 var(--accent-dk);}
+  #dl:focus-visible{outline:3px solid var(--teal); outline-offset:3px;}
+  /* ---- 作品コード（提出用） ---- */
+  #shareBox{
+    flex:0 0 auto; border-top:1px solid var(--line);
+    padding:0 16px 12px; background:#f7fafb;
+  }
+  #shareBox summary{
+    cursor:pointer; list-style:none; padding:11px 0 9px;
+    font-size:11px; font-weight:800; letter-spacing:.12em; color:var(--sub);
+    user-select:none;
+  }
+  #shareBox summary::before{content:"▸ "; color:var(--accent);}
+  #shareBox[open] summary::before{content:"▾ ";}
+  #shareBox summary::-webkit-details-marker{display:none;}
+  #shareBox summary:hover{color:var(--ink);}
+  #shareBox input[type=text]{font-size:13px; padding:8px 10px; font-weight:600;}
+  .shareRow{display:flex; gap:6px; margin:7px 0 0;}
+  .shareRow input{flex:1; min-width:0;}
+  .shareRow button{
+    flex:0 0 auto; padding:8px 12px; font-size:12px; font-weight:800; font-family:inherit;
+    border:2px solid var(--teal); border-radius:9px; background:#f0fafa; color:var(--ink); cursor:pointer;
+  }
+  .shareRow button:hover{background:#dff2f2;}
+  #copyCode{width:100%;}
+  #shareMsg{font-weight:700; color:var(--teal); min-height:15px;}
+  /* ---- モバイル ---- */
+  @media (max-width:760px){
+    body{overflow:auto; height:auto;}
+    main{flex-direction:column;}
+    #panel{width:100%; border-right:none; border-bottom:1px solid var(--line); max-height:none;}
+    #controls{overflow:visible;}
+    #stage{height:52vh; flex:none;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">工</div>
+  <h1>ガジェット工房</h1>
+  <span class="tag">3Dプリント用 STL ジェネレーター</span>
+  <a class="sis" href="gadget-cad.html">🧊 じゆうに設計する →</a>
+  <a class="sis" href="laser-koubou.html">✂️ レーザー版はこちら →</a>
+</header>
+<main>
+  <div id="panel">
+    <div id="tabs" role="tablist">
+      <button class="tab on" data-preset="key" role="tab" aria-selected="true"><span class="ico">🔑</span>ネーム<br>キーホルダー</button>
+      <button class="tab" data-preset="clip" role="tab" aria-selected="false"><span class="ico">🔌</span>ケーブル<br>クリップ</button>
+      <button class="tab" data-preset="hook" role="tab" aria-selected="false"><span class="ico">🪝</span>フック</button>
+      <button class="tab" data-preset="hinge" role="tab" aria-selected="false"><span class="ico">🚪</span>蝶番<br>(印刷後即動く)</button>
+      <button class="tab" data-preset="fish" role="tab" aria-selected="false"><span class="ico">🐟</span>フレキシ<br>フィッシュ</button>
+      <button class="tab" data-preset="jig" role="tab" aria-selected="false"><span class="ico">📐</span>直角治具<br>(木工)</button>
+      <button class="tab" data-preset="guard" role="tab" aria-selected="false"><span class="ico">🛡️</span>コーナー<br>ガード</button>
+      <button class="tab" data-preset="bolt" role="tab" aria-selected="false"><span class="ico">🔩</span>ボルト&<br>ナット</button>
+      <button class="tab" data-preset="gear" role="tab" aria-selected="false"><span class="ico">⚙️</span>歯車</button>
+      <button class="tab" data-preset="planet" role="tab" aria-selected="false"><span class="ico">🪐</span>遊星歯車<br>(印刷後即回る)</button>
+      <button class="tab" data-preset="whistle" role="tab" aria-selected="false"><span class="ico">🎵</span>ホイッスル<br>(鳴る笛)</button>
+      <button class="tab" data-preset="spin" role="tab" aria-selected="false"><span class="ico">🌀</span>ハンド<br>スピナー</button>
+      <button class="tab" data-preset="chain" role="tab" aria-selected="false"><span class="ico">⛓️</span>チェーン<br>ブレスレット</button>
+      <button class="tab" data-preset="box" role="tab" aria-selected="false"><span class="ico">📦</span>フタ付き<br>小箱</button>
+      <button class="tab" data-preset="arm" role="tab" aria-selected="false"><span class="ico">🦾</span>多関節<br>アーム</button>
+    </div>
+    <div id="controls"></div>
+    <details id="shareBox">
+      <summary>📤 先生に送る（作品コード）</summary>
+      <input type="text" id="authorIn" placeholder="なまえ・出席番号" maxlength="20">
+      <div class="shareRow"><button id="copyCode">📋 作品コードをコピー</button></div>
+      <div class="shareRow">
+        <input type="text" id="codeIn" placeholder="コードを貼り付けて復元 →">
+        <button id="loadBtn">読込</button>
+      </div>
+      <div id="shareMsg" class="hint"></div>
+      <div class="hint">コピーしたコードを Classroom・Forms・チャットに貼って提出。先生はここに貼り付ければ同じ作品を再現してSTL保存できます。</div>
+    </details>
+  </div>
+  <div id="stage">
+    <div id="view"></div>
+    <div id="dims"></div>
+    <div id="plateNote">グリッド = A1 mini プレート（180×180mm）</div>
+  </div>
+</main>
+<footer>
+  <div id="stats"></div>
+  <button id="dl">⬇ STLをダウンロード</button>
+</footer>
+
+<script>
+"use strict";
+/* =========================================================
+   ガジェット工房 v1 — パラメトリックSTLジェネレーター
+   単位: 1 unit = 1mm
+========================================================= */
+
+// ---------- 状態 ----------
+const state = {
+  preset: "key",
+  color: "#ff6b35",
+  key:  { text:"なまえ", textH:12, textT:2.5, baseT:3, holeD:4, cell:3 },
+  clip: { cableD:5, wall:2.5, width:10, opening:70, foot:true },
+  hook: { openD:20, thick:4, plateH:40, width:15 },
+  hinge:{ length:50, knuckles:5, pinD:4, clearance:0.4, plateW:18, plateT:3 },
+  fish: { segs:7, size:16, clearance:0.4, thick:5 },
+  jig:  { boardT:12, clearance:0.5, size:70, wall:10, slotDepth:20, baseT:5 },
+  guard:{ boardT:18, cover:12, size:45, round:15, clearance:0.3, plateT:2.5 },
+  bolt: { dia:8, len:20, pitch:2.5, clearance:0.3 },
+  gear: { module:2, teeth:16, thick:6, boreD:4 },
+  planet:{ module:1.5, sunT:8, planetT:10, count:3, thick:8, clearance:0.4 },
+  whistle:{ chamberL:18, chamberH:10, width:12 },
+  chain:{ segs:16, size:8, clearance:0.4, thick:4 },
+  spin:{ thick:8, lobes:3, coin:"y100", clearance:0.35 },
+  box:{ W:60, D:40, H:25, wall:2, round:5, clearance:0.2, lip:5 },
+  arm:{ ballD:12, pitch:22, count:6, grip:0.3, base:true, tip:"dish" },
+  author:"",
+};
+const PLA = ["#ff6b35","#0fa3a3","#ffd23f","#8e6bf2","#f4f4f4","#3a3a3a"];
+
+// ---------- Three.js セットアップ ----------
+const viewEl = document.getElementById("view");
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+viewEl.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xeef2f5);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 1, 3000);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.95));
+const dir = new THREE.DirectionalLight(0xffffff, 0.75);
+dir.position.set(120, 200, 150);
+scene.add(dir);
+const dir2 = new THREE.DirectionalLight(0xffffff, 0.25);
+dir2.position.set(-150, 80, -120);
+scene.add(dir2);
+
+// A1 mini ビルドプレート (180×180)
+const grid = new THREE.GridHelper(180, 18, 0x9fb4c4, 0xc9d6e0);
+scene.add(grid);
+const plateGeo = new THREE.PlaneGeometry(180, 180);
+const plateMat = new THREE.MeshBasicMaterial({ color:0xdde6ec, transparent:true, opacity:0.55 });
+const plate = new THREE.Mesh(plateGeo, plateMat);
+plate.rotation.x = -Math.PI/2;
+plate.position.y = -0.05;
+scene.add(plate);
+
+let modelGroup = null;
+let modelMat = new THREE.MeshStandardMaterial({ color: state.color, roughness:0.55, metalness:0.05 });
+
+// ---------- カメラ操作（自前オービット） ----------
+const orbit = { theta: Math.PI/4, phi: Math.PI/3.2, radius: 160, target: new THREE.Vector3(0, 8, 0) };
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let autoRotate = !reduceMotion;
+
+function applyCamera(){
+  const t = orbit.target;
+  camera.position.set(
+    t.x + orbit.radius * Math.sin(orbit.phi) * Math.cos(orbit.theta),
+    t.y + orbit.radius * Math.cos(orbit.phi),
+    t.z + orbit.radius * Math.sin(orbit.phi) * Math.sin(orbit.theta)
+  );
+  camera.lookAt(t);
+}
+
+const pointers = new Map();
+let lastPinch = 0;
+viewEl.addEventListener("pointerdown", e => {
+  viewEl.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  autoRotate = false;
+});
+viewEl.addEventListener("pointermove", e => {
+  if (!pointers.has(e.pointerId)) return;
+  const p = pointers.get(e.pointerId);
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if (pointers.size === 1){
+    orbit.theta += dx * 0.008;
+    orbit.phi = Math.min(Math.PI - 0.15, Math.max(0.15, orbit.phi + dy * 0.008));
+  } else if (pointers.size === 2){
+    const pts = [...pointers.values()];
+    const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    if (lastPinch > 0){
+      orbit.radius = clamp(orbit.radius * (lastPinch / d), 25, 900);
+    }
+    lastPinch = d;
+  }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) lastPinch = 0;
+}
+viewEl.addEventListener("pointerup", endPointer);
+viewEl.addEventListener("pointercancel", endPointer);
+viewEl.addEventListener("wheel", e => {
+  e.preventDefault();
+  orbit.radius = clamp(orbit.radius * (1 + Math.sign(e.deltaY) * 0.1), 25, 900);
+  autoRotate = false;
+}, { passive:false });
+
+function clamp(v, a, b){ return Math.min(b, Math.max(a, v)); }
+
+function resize(){
+  const w = viewEl.clientWidth, h = viewEl.clientHeight;
+  if (w === 0 || h === 0) return;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(viewEl);
+
+function animate(){
+  requestAnimationFrame(animate);
+  if (autoRotate) orbit.theta += 0.003;
+  applyCamera();
+  renderer.render(scene, camera);
+}
+
+// ---------- 形状ビルダー共通 ----------
+function roundedRectShape(w, h, r){
+  const s = new THREE.Shape();
+  const x = -w/2, y = -h/2;
+  s.moveTo(x + r, y);
+  s.lineTo(x + w - r, y);
+  s.absarc(x + w - r, y + r, r, -Math.PI/2, 0, false);
+  s.lineTo(x + w, y + h - r);
+  s.absarc(x + w - r, y + h - r, r, 0, Math.PI/2, false);
+  s.lineTo(x + r, y + h);
+  s.absarc(x + r, y + h - r, r, Math.PI/2, Math.PI, false);
+  s.lineTo(x, y + r);
+  s.absarc(x + r, y + r, r, Math.PI, Math.PI*1.5, false);
+  return s;
+}
+
+// ---------- ① ネームキーホルダー ----------
+// canvasに文字を描画 → ドットサンプリング → 長方形にまとめて押し出し
+function sampleText(text, cellPx){
+  const fs = 120;
+  const cv = document.createElement("canvas");
+  const ctx = cv.getContext("2d");
+  const font = "900 " + fs + "px 'Hiragino Kaku Gothic ProN','Hiragino Sans','Yu Gothic',Meiryo,sans-serif";
+  ctx.font = font;
+  const tw = Math.ceil(ctx.measureText(text).width) + 20;
+  cv.width = Math.max(tw, 10);
+  cv.height = Math.ceil(fs * 1.45);
+  const c2 = cv.getContext("2d");
+  c2.font = font;
+  c2.textBaseline = "top";
+  c2.fillStyle = "#000";
+  c2.fillText(text, 10, fs * 0.12);
+  const img = c2.getImageData(0, 0, cv.width, cv.height).data;
+
+  const cols = Math.floor(cv.width / cellPx);
+  const rows = Math.floor(cv.height / cellPx);
+  const filled = (cx, cy) => {
+    // セル中心＋少し周辺をサンプリング
+    const px = Math.min(cv.width - 1, Math.floor(cx * cellPx + cellPx/2));
+    const py = Math.min(cv.height - 1, Math.floor(cy * cellPx + cellPx/2));
+    return img[(py * cv.width + px) * 4 + 3] > 100;
+  };
+  const g = [];
+  let minC = 1e9, maxC = -1, minR = 1e9, maxR = -1;
+  for (let r = 0; r < rows; r++){
+    g[r] = [];
+    for (let c = 0; c < cols; c++){
+      const f = filled(c, r);
+      g[r][c] = f;
+      if (f){
+        minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+        minR = Math.min(minR, r); maxR = Math.max(maxR, r);
+      }
+    }
+  }
+  if (maxC < 0) return null; // 空
+  // トリム済みグリッド
+  const G = [];
+  for (let r = minR; r <= maxR; r++) G.push(g[r].slice(minC, maxC + 1));
+  return { grid: G, rows: maxR - minR + 1, cols: maxC - minC + 1, fs, cellPx };
+}
+
+// 行ごとの連続ラン → 縦に同一ランをマージして長方形化
+function greedyRects(grid){
+  const rows = grid.length, cols = grid[0].length;
+  const rects = [];
+  let active = new Map(); // key "x:len" -> rect
+  for (let r = 0; r < rows; r++){
+    const runs = [];
+    let c = 0;
+    while (c < cols){
+      if (grid[r][c]){
+        let s = c;
+        while (c < cols && grid[r][c]) c++;
+        runs.push([s, c - s]);
+      } else c++;
+    }
+    const next = new Map();
+    for (const [x, len] of runs){
+      const key = x + ":" + len;
+      if (active.has(key)){
+        const rect = active.get(key);
+        rect.h += 1;
+        next.set(key, rect);
+        active.delete(key);
+      } else {
+        const rect = { x, y: r, w: len, h: 1 };
+        rects.push(rect);
+        next.set(key, rect);
+      }
+    }
+    active = next;
+  }
+  return rects;
+}
+
+function buildKeychain(p){
+  const group = new THREE.Group();
+  const text = (p.text || "").trim() || "NAME";
+  const sam = sampleText(text, p.cell);
+  if (!sam) return group;
+
+  const mmPerPx = p.textH / sam.fs;           // 文字高さ基準のスケール
+  const cellMM = sam.cellPx * mmPerPx;
+  const textW = sam.cols * cellMM;
+  const textHmm = sam.rows * cellMM;
+
+  const pad = 3;
+  const ringZone = p.holeD + 6;               // 穴まわりの余白
+  const plateW = ringZone + textW + pad * 2;
+  const plateH = Math.max(textHmm + pad * 2, p.holeD + 8);
+  const rr = Math.min(4, plateH / 2 - 0.5);
+
+  // ベースプレート（角丸＋キーリング穴）
+  const shape = roundedRectShape(plateW, plateH, rr);
+  const hole = new THREE.Path();
+  const holeX = -plateW/2 + ringZone/2;
+  hole.absarc(holeX, 0, p.holeD / 2, 0, Math.PI * 2, true);
+  shape.holes.push(hole);
+  const baseGeo = new THREE.ExtrudeGeometry(shape, { depth: p.baseT, bevelEnabled: false, curveSegments: 24 });
+  const base = new THREE.Mesh(baseGeo, modelMat);
+  base.rotation.x = -Math.PI/2;               // XY平面 → 床置き（押し出しが上向き）
+  group.add(base);
+
+  // ドット文字（長方形マージ済み）
+  const rects = greedyRects(sam.grid);
+  const ox = -plateW/2 + ringZone + pad;      // 文字領域左端
+  const oy = textHmm / 2;                     // 上端（shape座標のy+側）
+  for (const rc of rects){
+    const w = rc.w * cellMM, h = rc.h * cellMM;
+    const bg = new THREE.BoxGeometry(w, p.textT, h);
+    const m = new THREE.Mesh(bg, modelMat);
+    m.position.set(
+      ox + rc.x * cellMM + w / 2,
+      p.baseT + p.textT / 2 - 0.05,           // わずかに食い込ませて一体化
+      -(oy - (rc.y * cellMM + h / 2))         // worldZ = -(shapeY)
+    );
+    group.add(m);
+  }
+  return group;
+}
+
+// ---------- ② ケーブルクリップ ----------
+function buildClip(p){
+  const group = new THREE.Group();
+  const Ri = p.cableD / 2;
+  const Ro = Ri + p.wall;
+  const op = THREE.MathUtils.degToRad(p.opening);
+  const a1 = Math.PI/2 + op/2;                 // 開口は上（+Y）
+  const a2 = Math.PI/2 - op/2 + Math.PI * 2;
+  const N = 48;
+  const s = new THREE.Shape();
+  for (let i = 0; i <= N; i++){
+    const a = a1 + (a2 - a1) * (i / N);
+    const x = Ro * Math.cos(a), y = Ro * Math.sin(a);
+    if (i === 0) s.moveTo(x, y); else s.lineTo(x, y);
+  }
+  for (let i = N; i >= 0; i--){
+    const a = a1 + (a2 - a1) * (i / N);
+    s.lineTo(Ri * Math.cos(a), Ri * Math.sin(a));
+  }
+  s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth: p.width, bevelEnabled: false });
+  const clip = new THREE.Mesh(geo, modelMat);
+  group.add(clip);
+
+  if (p.foot){
+    const fw = Ro * 2.6;
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(fw, p.wall, p.width), modelMat);
+    foot.position.set(0, -Ro + p.wall/2, p.width/2);
+    group.add(foot);
+  }
+  // 印刷向き: 側面を下にして寝かせる（押し出し方向Zのまま床へ）
+  group.rotation.x = -Math.PI/2;
+  group.position.y = p.width;                  // 回転後、押し出し方向が-Yになるため持ち上げ
+  const wrap = new THREE.Group();
+  wrap.add(group);
+  return wrap;
+}
+
+// ---------- ③ フック ----------
+function buildHook(p){
+  const R = p.openD / 2;
+  const t = p.thick;
+  const H = p.plateH;
+  const tip = Math.max(4, R * 0.85);
+  const C = { x: t + R, y: 0 };
+  const Ro = R + t;
+  const N = 40;
+  const s = new THREE.Shape();
+  s.moveTo(0, H);
+  s.lineTo(0, 0);
+  for (let i = 0; i <= N; i++){                 // 外側アーク 180°→360°
+    const a = Math.PI + Math.PI * (i / N);
+    s.lineTo(C.x + Ro * Math.cos(a), C.y + Ro * Math.sin(a));
+  }
+  s.lineTo(C.x + Ro, tip);                      // 先端外側
+  s.lineTo(C.x + R, tip);                       // 先端内側へ
+  for (let i = N; i >= 0; i--){                 // 内側アーク 360°→180°
+    const a = Math.PI + Math.PI * (i / N);
+    s.lineTo(C.x + R * Math.cos(a), C.y + R * Math.sin(a));
+  }
+  s.lineTo(t, H);
+  s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth: p.width, bevelEnabled: false });
+  const hook = new THREE.Mesh(geo, modelMat);
+  const g = new THREE.Group();
+  g.add(hook);
+  // 寝かせて印刷（横倒し＝積層方向に強い）
+  g.rotation.x = -Math.PI/2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ④ プリントインプレース蝶番 ----------
+// ピンはA側ナックルと一体、B側リングがすき間(クリアランス)をあけてピンを包む。
+// そのまま印刷 → 外した瞬間から回る。
+function buildHinge(p){
+  const g = new THREE.Group();
+  const rP = p.pinD / 2;
+  const rO = rP + 2.2;                          // ナックル外径
+  const cl = p.clearance;
+  const k = Math.max(3, Math.round(p.knuckles) | 1); // 奇数保証（両端A側＝ピン固定で抜けない）
+  const segLen = (p.length - (k - 1) * cl) / k;
+  const plateT = Math.min(p.plateT, rO * 1.4);
+  const plateY = -rO + plateT / 2;              // 板の底面＝ナックル最下点（床にベタ置き）
+
+  const mkBox = (w, h, d, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), modelMat);
+    m.position.set(x, y, z);
+    g.add(m);
+  };
+  // 左右プレート（全長連続）
+  mkBox(p.plateW, plateT, p.length, -(rO + cl) - p.plateW / 2, plateY, p.length / 2);
+  mkBox(p.plateW, plateT, p.length,  (rO + cl) + p.plateW / 2, plateY, p.length / 2);
+  // ピン（全長・A側ナックルと融合）
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(rP, rP, p.length, 32), modelMat);
+  pin.rotation.x = Math.PI / 2;
+  pin.position.z = p.length / 2;
+  g.add(pin);
+  // B側リング用の断面（外円＋ピン穴＝クリアランス付き）
+  const ringShape = new THREE.Shape();
+  ringShape.absarc(0, 0, rO, 0, Math.PI * 2, false);
+  const rh = new THREE.Path();
+  rh.absarc(0, 0, rP + cl, 0, Math.PI * 2, true);
+  ringShape.holes.push(rh);
+
+  for (let i = 0; i < k; i++){
+    const z0 = i * (segLen + cl);
+    if (i % 2 === 0){
+      // A側: 中実ナックル（ピンと一体）＋左プレートへの接続
+      const kn = new THREE.Mesh(new THREE.CylinderGeometry(rO, rO, segLen, 40), modelMat);
+      kn.rotation.x = Math.PI / 2;
+      kn.position.z = z0 + segLen / 2;
+      g.add(kn);
+      mkBox(cl + 3, plateT, segLen, -rO - cl / 2, plateY, z0 + segLen / 2);
+    } else {
+      // B側: リング（ピンのまわりを回転）＋右プレートへの接続
+      const geo = new THREE.ExtrudeGeometry(ringShape, { depth: segLen, bevelEnabled: false, curveSegments: 40 });
+      const m = new THREE.Mesh(geo, modelMat);
+      m.position.z = z0;
+      g.add(m);
+      mkBox(cl + 3, plateT, segLen, rO + cl / 2, plateY, z0 + segLen / 2);
+    }
+  }
+  return g; // 押し出し軸が水平なのでこのまま床置きOK
+}
+
+// ---------- ⑤ フレキシフィッシュ ----------
+// 各節がペグ（丸軸）とCスロットでかみ合った状態で生成される2D関節。
+// 平置き印刷 → 外した瞬間からクネクネ動くフィジェットトイ。
+function buildFish(p){
+  const H = p.size, cl = p.clearance;
+  const n = Math.max(3, Math.round(p.segs));
+  const pegR = clamp(H * 0.16, 1.4, 4);        // ペグ半径
+  const nw = pegR;                              // ネック幅
+  const sw = nw / 2 + cl;                       // スロット半幅
+  const rs = pegR + cl;                         // ソケット穴半径
+  const lip = 1.2;
+  const hAt = i => Math.max(H * (1 - 0.45 * (i / (n - 1))), 2 * (rs + 1.0)); // 壁厚1mmを保証
+  const bLen = i => Math.max(hAt(i) * 0.72, rs * 2 + lip + 1.6);
+  const xs = [0];
+  for (let i = 1; i < n; i++) xs.push(xs[i - 1] + bLen(i - 1) + cl);
+  const socketC = i => xs[i] + rs + lip;        // ソケット中心x
+
+  const shapes = [];
+  for (let i = 0; i < n; i++){
+    const x0 = xs[i], x1 = xs[i] + bLen(i);
+    const hL = hAt(i);
+    const hR = (i < n - 1) ? (hAt(i) + hAt(i + 1)) / 2 : hAt(i) * 0.8;
+    const pts = [];
+    // 上辺（右→左）
+    pts.push([x1, hR / 2]);
+    if (i === 0){
+      const nose = H * 0.5;                     // 頭: とがった鼻先
+      pts.push([x0 + nose, hL / 2]);
+      pts.push([x0, 0]);
+      pts.push([x0 + nose, -hL / 2]);
+    } else {
+      pts.push([x0, hL / 2]);
+      // 左辺: Cスロット（前の節のペグを包む）
+      const xc = socketC(i);
+      const dq = Math.sqrt(Math.max(0.01, rs * rs - sw * sw));
+      pts.push([x0, sw]);
+      pts.push([xc - dq, sw]);
+      const a1 = Math.atan2(sw, -dq);           // 約160°
+      const NN = 28;
+      for (let j = 0; j <= NN; j++){
+        const a = a1 - (j / NN) * (2 * a1);     // 160° → -160°（右回りに包む）
+        pts.push([xc + rs * Math.cos(a), rs * Math.sin(a)]);
+      }
+      pts.push([x0, -sw]);
+      pts.push([x0, -hL / 2]);
+    }
+    // 下辺（左→右）
+    pts.push([x1, -hR / 2]);
+    // 右辺
+    if (i === n - 1){
+      // 尾びれ
+      const fl = H * 0.7, spread = hR * 0.9;
+      pts.push([x1 + fl, -hR / 2 - spread]);
+      pts.push([x1 + fl * 0.55, 0]);
+      pts.push([x1 + fl, hR / 2 + spread]);
+    } else {
+      // ネック＋ペグ（次の節のソケット中心へ）
+      const cX = socketC(i + 1);
+      const dp = Math.sqrt(Math.max(0.01, pegR * pegR - (nw / 2) * (nw / 2)));
+      pts.push([x1, -nw / 2]);
+      pts.push([cX - dp, -nw / 2]);
+      const b1 = Math.atan2(-nw / 2, -dp);      // 約-165°
+      const NN = 28;
+      for (let j = 0; j <= NN; j++){
+        const a = b1 + (j / NN) * (-2 * b1);    // -165° → +165°
+        pts.push([cX + pegR * Math.cos(a), pegR * Math.sin(a)]);
+      }
+      pts.push([x1, nw / 2]);
+    }
+    const s = new THREE.Shape();
+    s.moveTo(pts[0][0], pts[0][1]);
+    for (let q = 1; q < pts.length; q++) s.lineTo(pts[q][0], pts[q][1]);
+    s.closePath();
+    if (i === 0){
+      // 目
+      const eye = new THREE.Path();
+      eye.absarc(x0 + H * 0.5, H * 0.14, Math.max(0.8, H * 0.07), 0, Math.PI * 2, true);
+      s.holes.push(eye);
+    }
+    shapes.push(s);
+  }
+  const geo = new THREE.ExtrudeGeometry(shapes, { depth: p.thick, bevelEnabled: false, curveSegments: 8 });
+  const mesh = new THREE.Mesh(geo, modelMat);
+  const g = new THREE.Group();
+  g.add(mesh);
+  g.rotation.x = -Math.PI / 2;                  // 平置き
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+// ---------- ⑥ 直角治具（木工・釘打ち/接着用） ----------
+// 2枚の板を90°で保持する。溝は貫通せず底板でつながる。
+function buildJig(p){
+  const S = p.size, gw = p.wall, w = p.boardT + p.clearance;
+  const g = new THREE.Group();
+  const poly = pts => { const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]); s.closePath(); return s; };
+  const mk = (shape, depth, z) => {
+    const m = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled:false }), modelMat);
+    m.position.z = z;
+    g.add(m);
+  };
+  // 底板（全面）
+  mk(poly([[0,0],[S,0],[S,S],[0,S]]), p.baseT, 0);
+  // 外壁（L字）
+  mk(poly([[0,0],[S,0],[S,gw],[gw,gw],[gw,S],[0,S]]), p.slotDepth, p.baseT);
+  // 内ブロック（底板でつながる）
+  mk(poly([[gw+w,gw+w],[S,gw+w],[S,S],[gw+w,S]]), p.slotDepth, p.baseT);
+  g.rotation.x = -Math.PI / 2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ⑦ コーナーガード ----------
+// 板の角にスライドしてかぶせる保護キャップ。運搬・保管・安全対策に。
+function buildGuard(p){
+  const C = p.size, wall = p.cover, t = p.boardT + p.clearance;
+  const rc = Math.min(p.round, C * 0.6);
+  const g = new THREE.Group();
+  const outer = () => {
+    const s = new THREE.Shape();
+    s.moveTo(0, 0); s.lineTo(C, 0); s.lineTo(C, C - rc);
+    s.absarc(C - rc, C - rc, rc, 0, Math.PI / 2, false);
+    s.lineTo(0, C); s.closePath();
+    return s;
+  };
+  const lShape = () => {
+    const s = new THREE.Shape();
+    s.moveTo(C - wall, 0); s.lineTo(C, 0); s.lineTo(C, C - rc);
+    s.absarc(C - rc, C - rc, rc, 0, Math.PI / 2, false);
+    s.lineTo(0, C); s.lineTo(0, C - wall);
+    s.lineTo(C - wall, C - wall); s.closePath();
+    return s;
+  };
+  const mk = (shape, depth, z) => {
+    const m = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled:false, curveSegments:24 }), modelMat);
+    m.position.z = z; g.add(m);
+  };
+  mk(outer(), p.plateT, 0);              // 下面
+  mk(lShape(), t, p.plateT);             // 側壁（板が入るすき間）
+  mk(outer(), p.plateT, p.plateT + t);   // 上面
+  g.rotation.x = -Math.PI / 2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ⑧ ボルト＆ナット（本物のねじ山付き） ----------
+// 台形ねじ・端テーパ入り。ナットは径方向クリアランス付きで印刷後そのまま回る。
+function threadProfile(t){
+  if (t < 0.25) return 0;
+  if (t < 0.5)  return (t - 0.25) / 0.25;
+  if (t < 0.75) return 1;
+  return 1 - (t - 0.75) / 0.25;
+}
+const frac = x => x - Math.floor(x);
+function surfTris(rFor, y0, y1, N, M, flip){
+  const pos = [];
+  const P = (m, j) => {
+    const y = y0 + (y1 - y0) * m / M;
+    const th = j / N * Math.PI * 2;
+    const r = rFor(y - y0, th);
+    return [r * Math.cos(th), y, r * Math.sin(th)];
+  };
+  for (let m = 0; m < M; m++) for (let j = 0; j < N; j++){
+    const a = P(m, j), b = P(m, j + 1), c = P(m + 1, j + 1), d = P(m + 1, j);
+    if (!flip) pos.push(...a, ...c, ...b, ...a, ...d, ...c);
+    else       pos.push(...a, ...b, ...c, ...a, ...c, ...d);
+  }
+  return pos;
+}
+function capTris(rFor, yLocal, yWorld, N, up){
+  const pos = [];
+  for (let j = 0; j < N; j++){
+    const t1 = j / N * Math.PI * 2, t2 = (j + 1) / N * Math.PI * 2;
+    const a = [rFor(yLocal, t1) * Math.cos(t1), yWorld, rFor(yLocal, t1) * Math.sin(t1)];
+    const b = [rFor(yLocal, t2) * Math.cos(t2), yWorld, rFor(yLocal, t2) * Math.sin(t2)];
+    const c = [0, yWorld, 0];
+    if (up) pos.push(...c, ...b, ...a);
+    else    pos.push(...c, ...a, ...b);
+  }
+  return pos;
+}
+function ringTris(rIn, rOut, yLocal, yWorld, N, up){
+  const pos = [];
+  for (let j = 0; j < N; j++){
+    const t1 = j / N * Math.PI * 2, t2 = (j + 1) / N * Math.PI * 2;
+    const i1 = [rIn(yLocal, t1) * Math.cos(t1), yWorld, rIn(yLocal, t1) * Math.sin(t1)];
+    const i2 = [rIn(yLocal, t2) * Math.cos(t2), yWorld, rIn(yLocal, t2) * Math.sin(t2)];
+    const o1 = [rOut(yLocal, t1) * Math.cos(t1), yWorld, rOut(yLocal, t1) * Math.sin(t1)];
+    const o2 = [rOut(yLocal, t2) * Math.cos(t2), yWorld, rOut(yLocal, t2) * Math.sin(t2)];
+    if (up) pos.push(...i1, ...o2, ...o1, ...i1, ...i2, ...o2);
+    else    pos.push(...i1, ...o1, ...o2, ...i1, ...o2, ...i2);
+  }
+  return pos;
+}
+function trisMesh(posArr){
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(posArr), 3));
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, modelMat);
+}
+function buildBoltNut(p){
+  const g = new THREE.Group();
+  const N = 64;
+  const depth = p.pitch * 0.4;
+  const rMaj = p.dia / 2, rMin = rMaj - depth;
+  const F = p.dia * 1.7;                       // 六角の対辺
+  const hexRc = F / 1.7320508;                 // 六角の外接半径
+  const headH = p.dia * 0.65, nutH = p.dia * 0.8;
+  const bx = -hexRc - 4, nx = hexRc + 4;
+  // --- ボルト（頭を下に垂直印刷＝ねじ山がきれいに出る向き） ---
+  const rShaft = (y, th) => {
+    const taper = Math.max(0, Math.min(1, Math.min(y, p.len - y) / (p.pitch * 0.8)));
+    return rMin + depth * threadProfile(frac(y / p.pitch - th / (Math.PI * 2))) * taper;
+  };
+  const y0 = headH - 0.5, y1 = headH - 0.5 + p.len;
+  const M = Math.max(6, Math.round(p.len / p.pitch * 14));
+  const shaft = trisMesh([
+    ...surfTris(rShaft, y0, y1, N, M, false),
+    ...capTris(rShaft, 0, y0, N, false),
+    ...capTris(rShaft, p.len, y1, N, true),
+  ]);
+  shaft.position.x = bx;
+  g.add(shaft);
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(hexRc, hexRc, headH, 6), modelMat);
+  head.position.set(bx, headH / 2, 0);
+  g.add(head);
+  // --- ナット（内ねじ＝クリアランス付き） ---
+  const rHole = (y, th) => {
+    const taper = Math.max(0, Math.min(1, Math.min(y, nutH - y) / (p.pitch * 0.6)));
+    return (rMaj + p.clearance) - depth * threadProfile(frac(y / p.pitch - th / (Math.PI * 2))) * taper;
+  };
+  const ap = F / 2;
+  const rHex = (y, th) => {
+    const sec = ((th % (Math.PI / 3)) + Math.PI / 3) % (Math.PI / 3);
+    return ap / Math.cos(sec - Math.PI / 6);
+  };
+  const Mn = Math.max(6, Math.round(nutH / p.pitch * 14));
+  const nut = trisMesh([
+    ...surfTris(rHole, 0, nutH, N, Mn, true),
+    ...surfTris(rHex, 0, nutH, N, 1, false),
+    ...ringTris(rHole, rHex, 0, 0, N, false),
+    ...ringTris(rHole, rHex, nutH, nutH, N, true),
+  ]);
+  nut.position.x = nx;
+  g.add(nut);
+  return g;
+}
+
+// ---------- ⑨ インボリュート歯車（圧力角20°） ----------
+function buildGear(p){
+  const m = p.module, z = Math.round(p.teeth);
+  const alpha = 20 * Math.PI / 180;
+  const inv = x => Math.tan(x) - x;
+  const rp = m * z / 2, rb = rp * Math.cos(alpha), ra = rp + m;
+  const boreEff = Math.min(p.boreD, Math.max(2, 2 * (rp - 1.25 * m) - 3));
+  const rr = Math.max(rp - 1.25 * m, boreEff / 2 + 1.5);
+  const psi = r => {
+    const phi = Math.acos(Math.min(1, rb / r));
+    return Math.PI / (2 * z) + inv(alpha) - inv(phi);
+  };
+  const rStart = Math.max(rb, rr);
+  const halfPitch = Math.PI / z;
+  const steps = 8;
+  const pts = [];
+  for (let k = 0; k < z; k++){
+    const th0 = k * 2 * Math.PI / z;
+    pts.push([rr, th0 - halfPitch]);
+    pts.push([rr, th0 - psi(rStart)]);
+    for (let i = 0; i <= steps; i++){
+      const r = rStart + (ra - rStart) * i / steps;
+      pts.push([r, th0 - psi(r)]);
+    }
+    pts.push([ra, th0]);
+    for (let i = steps; i >= 0; i--){
+      const r = rStart + (ra - rStart) * i / steps;
+      pts.push([r, th0 + psi(r)]);
+    }
+    pts.push([rr, th0 + psi(rStart)]);
+  }
+  const s = new THREE.Shape();
+  s.moveTo(pts[0][0] * Math.cos(pts[0][1]), pts[0][0] * Math.sin(pts[0][1]));
+  for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0] * Math.cos(pts[i][1]), pts[i][0] * Math.sin(pts[i][1]));
+  s.closePath();
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, boreEff / 2, 0, Math.PI * 2, true);
+  s.holes.push(hole);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: p.thick, bevelEnabled:false, curveSegments:24 });
+  const mesh = new THREE.Mesh(geo, modelMat);
+  const g = new THREE.Group();
+  g.add(mesh);
+  g.rotation.x = -Math.PI / 2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ⑩ 遊星歯車（プリントインプレース・ヘリンボーン） ----------
+// 太陽・遊星・内歯リングを、かみ合い位相を合わせた状態で生成。
+// 薄い層を少しずつ回転させて積むことでヘリンボーン（山形）歯にし、
+// 軸方向に抜けない＝キャリアなしでも分解しない構造にする。
+function gearPolar(m, z, bl, ro){
+  const alpha = 20 * Math.PI / 180;
+  const inv = x => Math.tan(x) - x;
+  const rp = m * z / 2, rb = rp * Math.cos(alpha), ra = rp + m;
+  const rr = Math.max(rp - 1.25 * m, 1.5);
+  const psi = r => {
+    const phi = Math.acos(Math.min(1, rb / r));
+    return Math.PI / (2 * z) + inv(alpha) - inv(phi);
+  };
+  const thin = r => Math.max(0.008, psi(r) - bl / (2 * r));  // bl>0で歯を細く(バックラッシュ)
+  const rStart = Math.max(rb, rr);
+  const halfPitch = Math.PI / z, steps = 5;
+  const pts = [];
+  for (let k = 0; k < z; k++){
+    const th0 = k * 2 * Math.PI / z;
+    pts.push([rr + ro, th0 - halfPitch]);
+    pts.push([rr + ro, th0 - thin(rStart)]);
+    for (let i = 0; i <= steps; i++){
+      const r = rStart + (ra - rStart) * i / steps;
+      pts.push([r + ro, th0 - thin(r)]);
+    }
+    for (let i = steps; i >= 0; i--){
+      const r = rStart + (ra - rStart) * i / steps;
+      pts.push([r + ro, th0 + thin(r)]);
+    }
+    pts.push([rr + ro, th0 + thin(rStart)]);
+  }
+  return pts;
+}
+function polarPath(pts, PathClass){
+  const s = new PathClass();
+  s.moveTo(pts[0][0] * Math.cos(pts[0][1]), pts[0][0] * Math.sin(pts[0][1]));
+  for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0] * Math.cos(pts[i][1]), pts[i][0] * Math.sin(pts[i][1]));
+  s.closePath();
+  return s;
+}
+function buildPlanet(p){
+  const m = p.module, zs = Math.round(p.sunT), zp = Math.round(p.planetT);
+  const cl = p.clearance, zr = zs + 2 * zp;
+  const rps = m * zs / 2, rpp = m * zp / 2, rpr = m * zr / 2;
+  const c = m * (zs + zp) / 2;
+  let Np = Math.round(p.count);
+  while (Np > 2 && 2 * c * Math.sin(Math.PI / Np) < 2 * (rpp + m) + 1.2) Np--;  // 遊星同士の干渉を回避
+  const L = 10, lt = p.thick / L, Tmax = 0.8;   // 層数と、ピッチ円上での最大ねじれ量(mm)
+  const sunShape = polarPath(gearPolar(m, zs, cl / 2, -cl / 4), THREE.Shape);
+  const plaShape = polarPath(gearPolar(m, zp, cl / 2, -cl / 4), THREE.Shape);
+  const Rout = rpr + m + 3;
+  const ringShape = new THREE.Shape();
+  ringShape.absarc(0, 0, Rout, 0, Math.PI * 2, false);
+  ringShape.holes.push(polarPath(gearPolar(m, zr, -cl / 2, cl / 4), THREE.Path));
+  const opt = { depth: lt, bevelEnabled: false, curveSegments: 24 };
+  const sunGeo = new THREE.ExtrudeGeometry(sunShape, opt);
+  const plaGeo = new THREE.ExtrudeGeometry(plaShape, opt);
+  const ringGeo = new THREE.ExtrudeGeometry(ringShape, opt);
+  const gamma = (zp % 2 === 1) ? 0 : Math.PI / zr;  // リングの位相（遊星歯数の偶奇で半歯ずれる）
+  const total = zs + zr;                             // 遊星を配置できる角度は 2π/(zs+zr) の倍数のみ
+  const g = new THREE.Group();
+  for (let li = 0; li < L; li++){
+    const T = Tmax * (1 - Math.abs(2 * (li + 0.5) / L - 1));  // シェブロン: 中央で最大
+    const z = li * lt;
+    const add = (geo, rz, x, y) => {
+      const mm = new THREE.Mesh(geo, modelMat);
+      mm.rotation.z = rz;
+      mm.position.set(x, y, z);
+      g.add(mm);
+    };
+    add(sunGeo, T / rps, 0, 0);
+    add(ringGeo, gamma - T / rpr, 0, 0);
+    for (let k = 0; k < Np; k++){
+      const phi = Math.round(k * total / Np) * 2 * Math.PI / total;
+      const beta = Math.PI + Math.PI / zp + phi * (zs + zp) / zp;  // 太陽とのかみ合い位相
+      add(plaGeo, beta - T / rpp, c * Math.cos(phi), c * Math.sin(phi));
+    }
+  }
+  g.rotation.x = -Math.PI / 2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ⑪ ホイッスル（実際に鳴る笛） ----------
+// 側面図の断面を押し出し、両側を板でふさぐ。スロットから出た空気の膜が
+// ラビウム（くさびの刃）に当たって発振する、リコーダーと同じ原理。
+function buildWhistle(p){
+  const wall = 2, ch = 1.2, ML = 13, winL = 5;
+  const CH = p.chamberH, CL = p.chamberL;
+  const Wi = Math.max(4, p.width - 2 * wall);
+  const x0 = -wall - ML, xR = CL + wall, topY = CH + ch + wall;
+  const run = (ch + wall) / Math.tan(25 * Math.PI / 180);
+  const lipB = CH - 2.6;                         // 吹き口の下唇の下面
+  const P = pts => { const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]); s.closePath(); return s; };
+  // 本体断面: 吹き口下唇 → 共鳴室の壁 → ラビウム（くさび）
+  const main = P([[x0, lipB], [-wall, lipB], [-wall, -wall], [xR, -wall], [xR, topY], [winL + run, topY], [winL, CH], [CL, CH], [CL, 0], [0, 0], [0, CH], [x0, CH]]);
+  // スロット天井（吹き口の上唇）— 側板を介して本体とつながる
+  const roof = P([[x0, CH + ch], [0, CH + ch], [0, topY], [x0, topY]]);
+  // 側板（左右のふた）
+  const plate = P([[x0, lipB], [-wall, lipB], [-wall, -wall], [xR, -wall], [xR, topY], [x0, topY]]);
+  const g = new THREE.Group();
+  const mk = (sh, depth, z) => {
+    const mm = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false }), modelMat);
+    mm.position.z = z;
+    g.add(mm);
+  };
+  mk(plate, wall, 0);
+  mk(main, Wi, wall);
+  mk(roof, Wi, wall);
+  mk(plate, wall, wall + Wi);
+  g.rotation.x = -Math.PI / 2;   // 側板を下にして平置き印刷
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ⑫ チェーンブレスレット ----------
+// フィッシュと同じペグ＋Cスロット関節。全コマ同一形状で、
+// 両端をパチンとはめれば輪になる。
+function buildChain(p){
+  const H = p.size, cl = p.clearance;
+  const n = Math.max(3, Math.round(p.segs));
+  const pegR = clamp(H * 0.2, 1.4, 3.5);
+  const nw = pegR, sw = nw / 2 + cl, rs = pegR + cl, lip = 1.2;
+  const bLen = Math.max(H * 0.85, rs * 2 + lip + 2.2);
+  const pitch = bLen + cl;
+  const shapes = [];
+  for (let i = 0; i < n; i++){
+    const x0 = i * pitch, x1 = x0 + bLen;
+    const xc = x0 + rs + lip;                    // ソケット中心
+    const pts = [];
+    pts.push([x1, H / 2]);
+    pts.push([x0, H / 2]);
+    // 左辺: Cスロット（前のコマのペグを包む）
+    const dq = Math.sqrt(Math.max(0.01, rs * rs - sw * sw));
+    pts.push([x0, sw]);
+    pts.push([xc - dq, sw]);
+    const a1 = Math.atan2(sw, -dq), NN = 24;
+    for (let j = 0; j <= NN; j++){
+      const a = a1 - (j / NN) * (2 * a1);
+      pts.push([xc + rs * Math.cos(a), rs * Math.sin(a)]);
+    }
+    pts.push([x0, -sw]);
+    pts.push([x0, -H / 2]);
+    pts.push([x1, -H / 2]);
+    // 右辺: ネック＋ペグ（次のコマのソケット中心へ）
+    const cX = x1 + cl + rs + lip;
+    const dp = Math.sqrt(Math.max(0.01, pegR * pegR - (nw / 2) * (nw / 2)));
+    pts.push([x1, -nw / 2]);
+    pts.push([cX - dp, -nw / 2]);
+    const b1 = Math.atan2(-nw / 2, -dp);
+    for (let j = 0; j <= NN; j++){
+      const a = b1 + (j / NN) * (-2 * b1);
+      pts.push([cX + pegR * Math.cos(a), pegR * Math.sin(a)]);
+    }
+    pts.push([x1, nw / 2]);
+    const s = new THREE.Shape();
+    s.moveTo(pts[0][0], pts[0][1]);
+    for (let q = 1; q < pts.length; q++) s.lineTo(pts[q][0], pts[q][1]);
+    s.closePath();
+    // 飾り穴（スペースがあるコマのみ）
+    const hx0 = xc + rs + 1.6, hx1 = x1 - 1.6;
+    const hr = Math.min(H * 0.18, (hx1 - hx0) / 2 - 0.3);
+    if (hr >= 0.9){
+      const hole = new THREE.Path();
+      hole.absarc((hx0 + hx1) / 2, 0, hr, 0, Math.PI * 2, true);
+      s.holes.push(hole);
+    }
+    shapes.push(s);
+  }
+  const geo = new THREE.ExtrudeGeometry(shapes, { depth: p.thick, bevelEnabled: false, curveSegments: 8 });
+  const mesh = new THREE.Mesh(geo, modelMat);
+  const g = new THREE.Group();
+  g.add(mesh);
+  g.rotation.x = -Math.PI / 2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ⑬ ハンドスピナー（軸受け一体） ----------
+// 中央ハブと外側ボディが45°コーンのすべり軸受でかみ合う。
+// 45°なのでサポートなしで印刷でき、外した瞬間から回る。
+function buildSpinner(p){
+  const cl = p.clearance, T = Math.max(7, p.thick), Th = T + 1;
+  const R1 = 5, R2 = 7, fl = 1.5, cone = R2 - R1;
+  const g = new THREE.Group();
+  const lathe = pts => {
+    const geo = new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), 64);
+    const mm = new THREE.Mesh(geo, modelMat);
+    mm.rotation.x = Math.PI / 2;   // 回転体の軸を押し出しと同じZ向きへ
+    g.add(mm);
+  };
+  // ハブ（指でつまむ軸）: フランジ→45°→くびれ→45°→フランジ
+  lathe([[0.01, 0], [R2, 0], [R2, fl], [R1, fl + cone], [R1, Th - fl - cone], [R2, Th - fl], [R2, Th], [0.01, Th]]);
+  // ボディ内輪（ハブをクリアランス付きで包む）
+  const Rb = R2 + cl + 3;
+  lathe([[Rb, 0], [R2 + cl, 0], [R2 + cl, fl + cl], [R1 + cl, fl + cl + cone], [R1 + cl, Th - fl - cone - cl], [R2 + cl, Th - fl - cl], [R2 + cl, T], [Rb, T], [Rb, 0]]);
+  // 羽根（コインポケット付き・内輪と重なって一体化）
+  const coinD = { none: 0, y1: 20.0, y50: 21.0, y100: 22.6, y500: 26.5 }[p.coin] || 0;
+  const Rl = coinD ? coinD / 2 + 3.5 : 11;
+  const dist = Rb - 1.5 + Rl;
+  const NL = Math.round(p.lobes);
+  const mkL = (sh, depth, z, cx, cy) => {
+    const mm = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false, curveSegments: 32 }), modelMat);
+    mm.position.set(cx, cy, z);
+    g.add(mm);
+  };
+  for (let k = 0; k < NL; k++){
+    const a = k * 2 * Math.PI / NL + Math.PI / 2;
+    const cx = dist * Math.cos(a), cy = dist * Math.sin(a);
+    const disc = () => { const s = new THREE.Shape(); s.absarc(0, 0, Rl, 0, Math.PI * 2, false); return s; };
+    if (coinD){
+      mkL(disc(), 1.2, 0, cx, cy);               // ポケットの底
+      const s = disc();
+      const hole = new THREE.Path();
+      hole.absarc(0, 0, coinD / 2 + 0.15, 0, Math.PI * 2, true);
+      s.holes.push(hole);
+      mkL(s, T - 1.2, 1.2, cx, cy);
+    } else {
+      mkL(disc(), T, 0, cx, cy);
+    }
+  }
+  g.rotation.x = -Math.PI / 2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ⑭ フタ付き小箱 ----------
+// かぶせ式のフタ（天板＋内側スカート）。本体と横に並べて1つのSTLに。
+function buildBox(p){
+  const w = p.wall, cl = p.clearance;
+  const r = Math.min(p.round, Math.min(p.W, p.D) / 2 - 1);
+  const g = new THREE.Group();
+  const mk = (sh, depth, x, z) => {
+    const mm = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false, curveSegments: 16 }), modelMat);
+    mm.position.set(x, 0, z);
+    g.add(mm);
+  };
+  // 本体: 底板＋壁
+  mk(roundedRectShape(p.W, p.D, r), 2, 0, 0);
+  const walls = roundedRectShape(p.W, p.D, r);
+  walls.holes.push(roundedRectShape(p.W - 2 * w, p.D - 2 * w, Math.max(0.8, r - w)));
+  mk(walls, p.H, 0, 0);
+  // フタ: 天板＋スカート（本体の内側に入る）
+  const lidX = p.W + 8;
+  mk(roundedRectShape(p.W, p.D, r), 2, lidX, 0);
+  const pw = p.W - 2 * w - 2 * cl, pd = p.D - 2 * w - 2 * cl;
+  const plug = roundedRectShape(pw, pd, Math.max(0.6, r - w - cl));
+  if (pw > 12 && pd > 12) plug.holes.push(roundedRectShape(pw - 3.6, pd - 3.6, Math.max(0.4, r - w - cl - 1.8)));
+  mk(plug, p.lip, lidX, 2);
+  g.rotation.x = -Math.PI / 2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+// ---------- ⑮ 多関節アーム（ロックライン式・連結延長式） ----------
+// 各節 = ボール＋スリット入りソケット。印刷後にパチンとはめて連結し、
+// 好きな長さに延長できる。関節は球面シートの摩擦でポーズを保持。
+// ボールは底面をフラットカットしてそのまま立てて印刷（サポート不要）。
+function buildArm(p){
+  const R = p.ballD / 2, cl = 0.15, wall = 1.8, grip = p.grip;
+  const rn = Math.max(1.6, R * 0.45);          // ネック半径
+  const Rout = R + cl + wall;                   // ソケット外径
+  const zc = 0.8 * R;                           // ボール中心高さ（フラットカット r=0.6R）
+  const z1 = zc + Math.sqrt(R * R - rn * rn);   // ネック取り付け高さ
+  const dMax = 0.8 * (R + cl);                  // 球面シートの深さ
+  const pitch = Math.max(p.pitch, Math.ceil(Math.max(z1 + (Rout - rn) + 3.1, z1 + dMax + 1.5)));
+  const zEq = pitch;                            // シート赤道 = はめた時の次ボール中心
+  const zS0 = zEq - 1.5;
+  const seatR = R + cl;
+  const g = new THREE.Group();
+  const latheAt = (pts, cx, cy) => {
+    const geo = new THREE.LatheGeometry(pts.map(q => new THREE.Vector2(q[0], q[1])), 48);
+    const mm = new THREE.Mesh(geo, modelMat);
+    mm.rotation.x = Math.PI / 2;
+    mm.position.set(cx, cy, 0);
+    g.add(mm);
+  };
+  // カップ内面の半径: 球面シート → くいこみリップ → 誘い込み
+  const rIn = (zEqL, z) => {
+    if (z <= zEqL) return Math.sqrt(Math.max(0.25, seatR * seatR - (zEqL - z) * (zEqL - z)));
+    if (z <= zEqL + 1.3){
+      const d = z - zEqL;
+      return Math.sqrt(Math.max(0.25, seatR * seatR - d * d)) - grip * (d / 1.3);
+    }
+    const lipR = Math.sqrt(Math.max(0.25, seatR * seatR - 1.69)) - grip;
+    return lipR + 0.9 * (z - zEqL - 1.3) / 0.8;
+  };
+  // ソケット上部: 4本の指に分割（スリット）してパチンと開くように
+  const gapA = 1.3 / Rout;
+  const cupTop = (zEqL, cx, cy) => {
+    const L = 6, z0 = zEqL - 1.5, lt = (zEqL + 2.1 - z0) / L;
+    for (let li = 0; li < L; li++){
+      const ri = rIn(zEqL, z0 + (li + 0.5) * lt);
+      for (let k = 0; k < 4; k++){
+        const t0 = k * Math.PI / 2 + gapA / 2, t1 = (k + 1) * Math.PI / 2 - gapA / 2;
+        const s = new THREE.Shape();
+        s.absarc(0, 0, Rout, t0, t1, false);
+        s.lineTo(ri * Math.cos(t1), ri * Math.sin(t1));
+        s.absarc(0, 0, ri, t1, t0, true);
+        s.closePath();
+        const mm = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth: lt, bevelEnabled: false, curveSegments: 12 }), modelMat);
+        mm.position.set(cx, cy, z0 + li * lt);
+        g.add(mm);
+      }
+    }
+  };
+  // ボール外形（底フラット→球面→ネック取り付け）
+  const ballPts = arr => {
+    const a0 = Math.asin(0.6), a1 = Math.PI - Math.asin(rn / R);
+    arr.push([0.01, 0], [0.6 * R, 0]);
+    for (let i = 0; i <= 14; i++){
+      const a = a0 + (a1 - a0) * i / 14;
+      arr.push([R * Math.sin(a), zc - R * Math.cos(a)]);
+    }
+    return arr;
+  };
+  // 球面シート内面（上から下へ）＋くぼみ底
+  const seatPts = (arr, zEqL) => {
+    for (let i = 0; i <= 10; i++){
+      const d = 1.5 + (dMax - 1.5) * i / 10;
+      arr.push([Math.sqrt(Math.max(0.01, seatR * seatR - d * d)), zEqL - d]);
+    }
+    arr.push([0.01, zEqL - dMax - 1]);
+    return arr;
+  };
+  const addSegment = (cx, cy) => {
+    const pts = ballPts([]);
+    pts.push([rn, z1], [Rout, z1 + (Rout - rn)], [Rout, zS0]);
+    seatPts(pts, zEq);
+    latheAt(pts, cx, cy);
+    cupTop(zEq, cx, cy);
+  };
+  // 土台（円盤＋ソケット、ネジ2本 or 両面テープで固定）
+  const Rpl = Rout + 9;
+  const addBase = (cx, cy) => {
+    const zEqB = 3.8 + dMax + 1;
+    const disc = new THREE.Shape();
+    disc.absarc(0, 0, Rpl, 0, Math.PI * 2, false);
+    for (const sx of [-1, 1]){
+      const h = new THREE.Path();
+      h.absarc(sx * (Rpl - 4.5), 0, 2.1, 0, Math.PI * 2, true);
+      disc.holes.push(h);
+    }
+    const dm = new THREE.Mesh(new THREE.ExtrudeGeometry(disc, { depth: 3, bevelEnabled: false, curveSegments: 24 }), modelMat);
+    dm.position.set(cx, cy, 0);
+    g.add(dm);
+    const pts = [[0.01, 2.8], [Rout, 2.8], [Rout, zEqB - 1.5]];
+    seatPts(pts, zEqB);
+    latheAt(pts, cx, cy);
+    cupTop(zEqB, cx, cy);
+  };
+  // 先端パーツ（ボール＋皿 / フック）
+  const addTip = (cx, cy, kind) => {
+    const rd = kind === "dish" ? 11 : 9;
+    const pts = ballPts([]);
+    const zd = z1 + (rd - rn);
+    pts.push([rn, z1], [rd, zd], [rd, zd + 3], [0.01, zd + 3]);
+    latheAt(pts, cx, cy);
+    if (kind === "hook"){
+      const s = new THREE.Shape();
+      const a0 = -Math.PI * 0.3, a1 = Math.PI * 1.3;
+      s.absarc(0, 0, 8.5, a0, a1, false);
+      s.lineTo(5 * Math.cos(a1), 5 * Math.sin(a1));
+      s.absarc(0, 0, 5, a1, a0, true);
+      s.closePath();
+      const mm = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth: 8, bevelEnabled: false, curveSegments: 24 }), modelMat);
+      mm.position.set(cx, cy, zd + 3);
+      g.add(mm);
+    }
+  };
+  // プレートに敷き詰め配置
+  const items = [];
+  if (p.base) items.push({ r: Rpl, mk: addBase });
+  for (let i = 0; i < Math.round(p.count); i++) items.push({ r: Rout, mk: addSegment });
+  if (p.tip !== "none") items.push({ r: 12, mk: (x, y) => addTip(x, y, p.tip) });
+  let cx = 0, cy = 0, rowH = 0;
+  for (const it of items){
+    const w = 2 * it.r + 4;
+    if (cx > 0 && cx + w > 172){ cy += rowH + 4; cx = 0; rowH = 0; }
+    it.mk(cx + it.r, cy + it.r);
+    rowH = Math.max(rowH, 2 * it.r);
+    cx += w;
+  }
+  g.rotation.x = -Math.PI / 2;
+  const wrap = new THREE.Group();
+  wrap.add(g);
+  return wrap;
+}
+
+function rebuild(){
+  if (modelGroup){
+    modelGroup.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+    scene.remove(modelGroup);
+  }
+  modelMat.color.set(state.color);
+  const p = state.preset;
+  if (p === "key")  modelGroup = buildKeychain(state.key);
+  if (p === "clip") modelGroup = buildClip(state.clip);
+  if (p === "hook") modelGroup = buildHook(state.hook);
+  if (p === "hinge") modelGroup = buildHinge(state.hinge);
+  if (p === "fish") modelGroup = buildFish(state.fish);
+  if (p === "jig") modelGroup = buildJig(state.jig);
+  if (p === "guard") modelGroup = buildGuard(state.guard);
+  if (p === "bolt") modelGroup = buildBoltNut(state.bolt);
+  if (p === "gear") modelGroup = buildGear(state.gear);
+  if (p === "planet") modelGroup = buildPlanet(state.planet);
+  if (p === "whistle") modelGroup = buildWhistle(state.whistle);
+  if (p === "chain") modelGroup = buildChain(state.chain);
+  if (p === "spin") modelGroup = buildSpinner(state.spin);
+  if (p === "box") modelGroup = buildBox(state.box);
+  if (p === "arm") modelGroup = buildArm(state.arm);
+  scene.add(modelGroup);
+
+  // XZ中心をプレート中央へ、底面をY=0へ
+  modelGroup.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(modelGroup);
+  const c = box.getCenter(new THREE.Vector3());
+  modelGroup.position.x -= c.x;
+  modelGroup.position.z -= c.z;
+  modelGroup.position.y -= box.min.y;
+  modelGroup.updateMatrixWorld(true);
+
+  const box2 = new THREE.Box3().setFromObject(modelGroup);
+  const size = box2.getSize(new THREE.Vector3());
+  orbit.target.set(0, size.y / 2, 0);
+  orbit.radius = clamp(Math.max(size.x, size.y, size.z) * 2.6 + 30, 60, 700);
+
+  // 寸法・統計表示
+  let tri = 0;
+  modelGroup.traverse(o => {
+    if (o.isMesh){
+      const g = o.geometry;
+      tri += (g.index ? g.index.count : g.attributes.position.count) / 3;
+    }
+  });
+  const over = size.x > 180 || size.z > 180;
+  document.getElementById("dims").innerHTML =
+    "サイズ: <b>" + size.x.toFixed(1) + " × " + size.z.toFixed(1) + " × " + size.y.toFixed(1) + " mm</b>" +
+    (over ? "<br><span class='warn'>⚠ プレート(180mm)を超えています</span>" : "");
+  document.getElementById("stats").innerHTML =
+    "三角形: " + tri.toLocaleString() + " ／ ファイル: 約" + Math.round((84 + tri * 50) / 1024) + " KB<br>" +
+    "ダウンロード後、Bambu Studio にドラッグ＆ドロップ";
+}
+
+// ---------- バイナリSTL書き出し ----------
+function exportSTL(root){
+  root.updateMatrixWorld(true);
+  const meshes = [];
+  root.traverse(o => { if (o.isMesh) meshes.push(o); });
+  let tri = 0;
+  for (const m of meshes){
+    const g = m.geometry;
+    tri += (g.index ? g.index.count : g.attributes.position.count) / 3;
+  }
+  const buf = new ArrayBuffer(84 + tri * 50);
+  const dv = new DataView(buf);
+  let off = 80;
+  dv.setUint32(off, tri, true); off += 4;
+  const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3();
+  const ab = new THREE.Vector3(), cb = new THREE.Vector3(), n = new THREE.Vector3();
+  for (const m of meshes){
+    const g = m.geometry;
+    const pos = g.attributes.position;
+    const idx = g.index;
+    const count = idx ? idx.count : pos.count;
+    for (let i = 0; i < count; i += 3){
+      const ia = idx ? idx.getX(i) : i;
+      const ib = idx ? idx.getX(i+1) : i+1;
+      const ic = idx ? idx.getX(i+2) : i+2;
+      vA.fromBufferAttribute(pos, ia).applyMatrix4(m.matrixWorld);
+      vB.fromBufferAttribute(pos, ib).applyMatrix4(m.matrixWorld);
+      vC.fromBufferAttribute(pos, ic).applyMatrix4(m.matrixWorld);
+      cb.subVectors(vC, vB); ab.subVectors(vA, vB);
+      n.crossVectors(cb, ab).normalize();
+      dv.setFloat32(off, n.x, true); dv.setFloat32(off+4, -n.z, true); dv.setFloat32(off+8, n.y, true); off += 12;
+      for (const v of [vA, vB, vC]){
+        // Yアップ(three) → Zアップ(印刷): (x, y, z) -> (x, -z, y)
+        dv.setFloat32(off, v.x, true);
+        dv.setFloat32(off+4, -v.z, true);
+        dv.setFloat32(off+8, v.y, true);
+        off += 12;
+      }
+      dv.setUint16(off, 0, true); off += 2;
+    }
+  }
+  return buf;
+}
+
+document.getElementById("dl").addEventListener("click", () => {
+  if (!modelGroup) return;
+  const buf = exportSTL(modelGroup);
+  const names = { key: "keyholder_" + (state.key.text || "name"), clip: "cable_clip_d" + state.clip.cableD, hook: "hook_d" + state.hook.openD, hinge: "hinge_L" + state.hinge.length + "_cl" + state.hinge.clearance, fish: "flexi_fish_" + state.fish.segs + "seg_cl" + state.fish.clearance, jig: "corner_jig_t" + state.jig.boardT, guard: "corner_guard_t" + state.guard.boardT, bolt: "bolt_nut_M" + state.bolt.dia + "_cl" + state.bolt.clearance, gear: "gear_m" + state.gear.module + "_z" + state.gear.teeth, planet: "planetary_m" + state.planet.module + "_cl" + state.planet.clearance, whistle: "whistle_L" + state.whistle.chamberL, chain: "chain_" + state.chain.segs + "links_cl" + state.chain.clearance, spin: "spinner_" + state.spin.coin, box: "box_" + state.box.W + "x" + state.box.D + "x" + state.box.H, arm: "arm_" + state.arm.count + "seg_D" + state.arm.ballD };
+  const who = (state.author || "").trim().replace(/[\\\/:*?"<>|\s]+/g, "_");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([buf], { type: "model/stl" }));
+  a.download = (names[state.preset] || "gadget") + (who ? "_" + who : "") + ".stl";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+
+// ---------- UI 構築 ----------
+const $c = document.getElementById("controls");
+
+function slider(obj, key, label, min, max, step, unit){
+  const div = document.createElement("div");
+  div.className = "grp";
+  const id = "s_" + key + Math.random().toString(36).slice(2, 6);
+  div.innerHTML = "<label for='" + id + "'>" + label + "<span class='val'></span></label>";
+  const inp = document.createElement("input");
+  inp.type = "range"; inp.id = id; inp.min = min; inp.max = max; inp.step = step; inp.value = obj[key];
+  const val = div.querySelector(".val");
+  const show = () => val.textContent = obj[key] + " " + unit;
+  inp.addEventListener("input", () => { obj[key] = parseFloat(inp.value); show(); rebuild(); });
+  show();
+  div.appendChild(inp);
+  return div;
+}
+
+function segRow(obj, key, label, options){
+  const g = document.createElement("div");
+  g.className = "grp";
+  g.innerHTML = "<label>" + label + "</label>";
+  const row = document.createElement("div");
+  row.className = "seg";
+  for (const [name, v] of options){
+    const b = document.createElement("button");
+    b.textContent = name;
+    if (obj[key] === v) b.classList.add("on");
+    b.addEventListener("click", () => {
+      obj[key] = v;
+      row.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      rebuild();
+    });
+    row.appendChild(b);
+  }
+  g.appendChild(row);
+  return g;
+}
+
+function colorRow(){
+  const div = document.createElement("div");
+  div.className = "grp";
+  div.innerHTML = "<div class='sec-title'>フィラメント色（プレビューのみ）</div>";
+  const row = document.createElement("div");
+  row.className = "swatches";
+  for (const c of PLA){
+    const b = document.createElement("button");
+    b.className = "sw" + (c === state.color ? " on" : "");
+    b.style.background = c;
+    b.setAttribute("aria-label", "色 " + c);
+    b.addEventListener("click", () => {
+      state.color = c;
+      row.querySelectorAll(".sw").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      rebuild();
+    });
+    row.appendChild(b);
+  }
+  div.appendChild(row);
+  return div;
+}
+
+function renderControls(){
+  $c.innerHTML = "";
+  if (state.preset === "key"){
+    const g = document.createElement("div");
+    g.className = "grp";
+    g.innerHTML = "<label for='nameIn'>なまえ（漢字・ひらがなOK！）</label>";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.id = "nameIn"; inp.value = state.key.text; inp.maxLength = 12;
+    let timer = null;
+    inp.addEventListener("input", () => {
+      state.key.text = inp.value;
+      clearTimeout(timer);
+      timer = setTimeout(rebuild, 250);
+    });
+    g.appendChild(inp);
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "文字はドット（ピクセル）スタイルで立体化されます。";
+    g.appendChild(hint);
+    $c.appendChild(g);
+    $c.appendChild(slider(state.key, "textH", "文字の高さ", 8, 24, 1, "mm"));
+    $c.appendChild(slider(state.key, "textT", "文字の厚み", 1, 5, 0.5, "mm"));
+    $c.appendChild(slider(state.key, "baseT", "ベースの厚み", 2, 6, 0.5, "mm"));
+    $c.appendChild(slider(state.key, "holeD", "キーリング穴の直径", 3, 8, 0.5, "mm"));
+    // ドット細かさ
+    const seg = document.createElement("div");
+    seg.className = "grp";
+    seg.innerHTML = "<label>ドットの細かさ</label>";
+    const row = document.createElement("div");
+    row.className = "seg";
+    const opts = [["あらい", 5], ["ふつう", 3], ["こまかい", 2]];
+    for (const [name, v] of opts){
+      const b = document.createElement("button");
+      b.textContent = name;
+      if (state.key.cell === v) b.classList.add("on");
+      b.addEventListener("click", () => {
+        state.key.cell = v;
+        row.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+        b.classList.add("on");
+        rebuild();
+      });
+      row.appendChild(b);
+    }
+    seg.appendChild(row);
+    $c.appendChild(seg);
+  }
+  if (state.preset === "clip"){
+    $c.appendChild(slider(state.clip, "cableD", "ケーブルの太さ", 2, 15, 0.5, "mm"));
+    $c.appendChild(slider(state.clip, "wall", "壁の厚み", 1.5, 4, 0.25, "mm"));
+    $c.appendChild(slider(state.clip, "width", "クリップの幅", 5, 25, 1, "mm"));
+    $c.appendChild(slider(state.clip, "opening", "開口の角度", 40, 120, 5, "°"));
+    const g = document.createElement("div");
+    g.className = "grp";
+    g.innerHTML = "<label>両面テープ用の台座</label>";
+    const row = document.createElement("div");
+    row.className = "seg";
+    for (const [name, v] of [["あり", true], ["なし", false]]){
+      const b = document.createElement("button");
+      b.textContent = name;
+      if (state.clip.foot === v) b.classList.add("on");
+      b.addEventListener("click", () => {
+        state.clip.foot = v;
+        row.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+        b.classList.add("on");
+        rebuild();
+      });
+      row.appendChild(b);
+    }
+    g.appendChild(row);
+    $c.appendChild(g);
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "開口はケーブル径よりせまくなるので、パチンとはめて保持できます。かたい場合は開口角度を大きく。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "hook"){
+    $c.appendChild(slider(state.hook, "openD", "フック開口の内径", 8, 45, 1, "mm"));
+    $c.appendChild(slider(state.hook, "thick", "厚み", 3, 8, 0.5, "mm"));
+    $c.appendChild(slider(state.hook, "plateH", "取り付け板の高さ", 25, 80, 5, "mm"));
+    $c.appendChild(slider(state.hook, "width", "フックの幅", 8, 30, 1, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "横倒しで印刷する前提の形状です（積層方向に強い）。両面テープや木ネジ＋接着で取り付け。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "hinge"){
+    $c.appendChild(slider(state.hinge, "length", "蝶番の全長", 30, 120, 5, "mm"));
+    $c.appendChild(slider(state.hinge, "knuckles", "ナックル（筒）の数", 3, 9, 2, "個"));
+    $c.appendChild(slider(state.hinge, "pinD", "ピンの直径", 3, 6, 0.5, "mm"));
+    $c.appendChild(slider(state.hinge, "clearance", "クリアランス（すき間）", 0.3, 0.6, 0.05, "mm"));
+    $c.appendChild(slider(state.hinge, "plateW", "板の幅", 10, 35, 1, "mm"));
+    $c.appendChild(slider(state.hinge, "plateT", "板の厚み", 2, 5, 0.5, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "★プリントインプレース: 組み立て不要、印刷してプレートから外した瞬間からパタパタ動きます。動きがかたい時はクリアランスを大きく、ガタつく時は小さく。最初は0.4mmがおすすめ。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "fish"){
+    $c.appendChild(slider(state.fish, "segs", "節（関節）の数", 4, 12, 1, "個"));
+    $c.appendChild(slider(state.fish, "size", "大きさ（頭の高さ）", 10, 30, 1, "mm"));
+    $c.appendChild(slider(state.fish, "clearance", "クリアランス（すき間）", 0.3, 0.6, 0.05, "mm"));
+    $c.appendChild(slider(state.fish, "thick", "厚み", 3, 8, 0.5, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "★プリントインプレース: 関節がかみ合った状態で印刷され、外した瞬間からクネクネ動くフィジェットトイです。関節がかたい時はクリアランスを大きく。最初は0.4mmがおすすめ。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "jig"){
+    $c.appendChild(slider(state.jig, "boardT", "板の厚み", 9, 30, 0.5, "mm"));
+    $c.appendChild(slider(state.jig, "clearance", "クリアランス（すき間）", 0.3, 1.0, 0.05, "mm"));
+    $c.appendChild(slider(state.jig, "size", "全体のサイズ", 50, 100, 5, "mm"));
+    $c.appendChild(slider(state.jig, "wall", "外壁の幅", 6, 15, 1, "mm"));
+    $c.appendChild(slider(state.jig, "slotDepth", "みぞの深さ", 10, 40, 2, "mm"));
+    $c.appendChild(slider(state.jig, "baseT", "底板の厚み", 3, 8, 0.5, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "2枚の板をL字のみぞに差し込むと90°で保持されます。釘打ち・ビス打ち・接着の位置決めに。板は上から落とし込む方式（みぞは貫通していません）。木材は反りがあるのでクリアランス0.5mm〜がおすすめ。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "guard"){
+    $c.appendChild(slider(state.guard, "boardT", "板の厚み", 5, 40, 0.5, "mm"));
+    $c.appendChild(slider(state.guard, "cover", "かぶり幅", 8, 20, 1, "mm"));
+    $c.appendChild(slider(state.guard, "size", "サイズ", 30, 70, 5, "mm"));
+    $c.appendChild(slider(state.guard, "round", "角の丸み", 5, 25, 1, "mm"));
+    $c.appendChild(slider(state.guard, "clearance", "クリアランス（すき間）", 0.2, 0.8, 0.05, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "板や天板の角にスライドしてかぶせる保護キャップ。作品の運搬・保管時の角つぶれ防止や、机の角の安全対策に。きつめ（0.2〜0.3）にすると外れにくくなります。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "bolt"){
+    $c.appendChild(slider(state.bolt, "dia", "呼び径（ねじの太さ）", 5, 14, 0.5, "mm"));
+    $c.appendChild(slider(state.bolt, "len", "ねじ部の長さ", 10, 40, 2, "mm"));
+    $c.appendChild(slider(state.bolt, "pitch", "ピッチ（山の間隔）", 1.5, 3, 0.25, "mm"));
+    $c.appendChild(slider(state.bolt, "clearance", "クリアランス（すき間）", 0.2, 0.5, 0.05, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "★本物のねじ山付き。ボルトとナットがセットで1つのSTLに入ります。ボルトは頭を下にした垂直の向きで印刷（そのままの向きでOK）。かたい時はクリアランスを大きく。金属ねじより山を大きくした3Dプリント向け設計です。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "gear"){
+    $c.appendChild(slider(state.gear, "module", "モジュール（歯の大きさ）", 1, 3, 0.5, ""));
+    $c.appendChild(slider(state.gear, "teeth", "歯数", 8, 48, 1, "枚"));
+    $c.appendChild(slider(state.gear, "thick", "厚み", 3, 10, 0.5, "mm"));
+    $c.appendChild(slider(state.gear, "boreD", "軸穴の直径", 2, 8, 0.5, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "圧力角20°のインボリュート歯車。かみ合わせ条件: 同じモジュール同士ならOK。軸間距離 =（歯数A＋歯数B）×モジュール ÷ 2。歯数を変えて2枚作れば減速・増速の実験ができます（エネルギー変換の教材にどうぞ！）。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "planet"){
+    $c.appendChild(slider(state.planet, "module", "モジュール（歯の大きさ）", 1, 2.5, 0.25, ""));
+    $c.appendChild(slider(state.planet, "sunT", "太陽ギアの歯数", 6, 14, 1, "枚"));
+    $c.appendChild(slider(state.planet, "planetT", "遊星ギアの歯数", 8, 16, 1, "枚"));
+    $c.appendChild(slider(state.planet, "count", "遊星の数", 3, 5, 1, "個"));
+    $c.appendChild(slider(state.planet, "thick", "厚み", 6, 12, 1, "mm"));
+    $c.appendChild(slider(state.planet, "clearance", "クリアランス（すき間）", 0.3, 0.6, 0.05, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "★プリントインプレース: ヘリンボーン（山形）の歯なので、組んだまま印刷しても軸方向に抜けません。外したら全体を軽くもみほぐし、中心（太陽）と外リングを持って回します。かたい時はクリアランスを大きく。遊星が入りきらない組合せでは自動で数が減ります。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "whistle"){
+    $c.appendChild(slider(state.whistle, "chamberL", "共鳴室の長さ（大=低い音）", 12, 30, 1, "mm"));
+    $c.appendChild(slider(state.whistle, "chamberH", "共鳴室の高さ", 8, 14, 1, "mm"));
+    $c.appendChild(slider(state.whistle, "width", "全体の幅", 10, 16, 1, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "実際に鳴る笛です。そのまま平置きで印刷（サポート不要）。うすい口の側をくわえて強めに吹くと鳴ります。共鳴室を小さくするほど高い音に。理科のエネルギー・振動の教材にも。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "chain"){
+    $c.appendChild(slider(state.chain, "segs", "コマの数", 8, 24, 1, "個"));
+    $c.appendChild(slider(state.chain, "size", "コマの高さ", 6, 12, 1, "mm"));
+    $c.appendChild(slider(state.chain, "clearance", "クリアランス（すき間）", 0.3, 0.6, 0.05, "mm"));
+    $c.appendChild(slider(state.chain, "thick", "厚み", 3, 6, 0.5, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "★プリントインプレース: つながった状態で印刷されるチェーン。両端の関節をパチンとはめると輪＝ブレスレットになります。全長は左上のサイズ表示で確認（手首まわり＋10mmくらいがおすすめ）。はめるのがかたい時はクリアランス大きめで。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "spin"){
+    $c.appendChild(slider(state.spin, "thick", "厚み", 7, 12, 0.5, "mm"));
+    $c.appendChild(slider(state.spin, "lobes", "羽根の数", 2, 5, 1, "枚"));
+    $c.appendChild(segRow(state.spin, "coin", "おもり用コインポケット", [["なし", "none"], ["1円", "y1"], ["50円", "y50"], ["100円", "y100"], ["500円", "y500"]]));
+    $c.appendChild(slider(state.spin, "clearance", "クリアランス（すき間）", 0.25, 0.5, 0.05, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "★プリントインプレース: 軸受け一体型スピナー。外したら中心の軸を上下から軽く押してゆっくり回し、ほぐしてから使います。コインを入れると重くなって長く回ります（セロテープで軽くフタをすると落ちません）。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "box"){
+    $c.appendChild(slider(state.box, "W", "幅", 24, 84, 2, "mm"));
+    $c.appendChild(slider(state.box, "D", "奥行き", 24, 120, 2, "mm"));
+    $c.appendChild(slider(state.box, "H", "高さ", 12, 80, 2, "mm"));
+    $c.appendChild(slider(state.box, "wall", "壁の厚み", 1.6, 3, 0.2, "mm"));
+    $c.appendChild(slider(state.box, "round", "角の丸み", 2, 10, 1, "mm"));
+    $c.appendChild(slider(state.box, "lip", "フタのはまり深さ", 3, 10, 1, "mm"));
+    $c.appendChild(slider(state.box, "clearance", "クリアランス（すき間）", 0.1, 0.4, 0.05, "mm"));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "本体とフタが横に並んで1つのSTLに入ります。かぶせ式のフタで、クリアランス0.15はきつめ（パチッ）・0.2ふつう・0.3ゆるめ。小物入れ・部品ケース・プレゼント箱に。";
+    $c.appendChild(hint);
+  }
+  if (state.preset === "arm"){
+    $c.appendChild(slider(state.arm, "ballD", "ボールの直径", 8, 16, 1, "mm"));
+    $c.appendChild(slider(state.arm, "pitch", "節の長さ", 15, 30, 1, "mm"));
+    $c.appendChild(slider(state.arm, "count", "節の数（1プレート分）", 2, 12, 1, "個"));
+    $c.appendChild(slider(state.arm, "grip", "保持力（はめ込みのかたさ）", 0.15, 0.5, 0.05, "mm"));
+    $c.appendChild(segRow(state.arm, "base", "土台（固定用の台座）", [["あり", true], ["なし", false]]));
+    $c.appendChild(segRow(state.arm, "tip", "先端パーツ", [["なし", "none"], ["丸皿", "dish"], ["フック", "hook"]]));
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = "★連結式: ロックライン式の関節アーム。印刷後、ボールをソケットにパチンと押し込んで連結し、何個でもつないで延ばせます（追加プレートもOK）。関節は摩擦でポーズを保持し、工具なしで分解可。つないだ時の全長 ≈ 節の長さ×個数。細長い部品なのでスライサーで「ブリム」をオンにすると倒れにくくなります。ゆるい時は保持力を上げて印刷。土台はネジ2本か両面テープで固定、丸皿にはスマホ台や小物トレーを接着できます。";
+    $c.appendChild(hint);
+  }
+  $c.appendChild(colorRow());
+}
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => { t.classList.remove("on"); t.setAttribute("aria-selected", "false"); });
+    tab.classList.add("on");
+    tab.setAttribute("aria-selected", "true");
+    state.preset = tab.dataset.preset;
+    renderControls();
+    rebuild();
+  });
+});
+
+// ---------- 作品コード（先生への提出用） ----------
+// 全設定＋名前をひとつの短い文字列に。Classroom/Formsに貼って提出でき、
+// 貼り付ければ同じ作品を完全に再現できる（ファイル送信不要）。
+function currentCode(){
+  const obj = { v: 1, p: state.preset, n: (state.author || "").trim(), c: state.color, s: state[state.preset] };
+  return "GK1." + btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+}
+function applyCode(str){
+  try {
+    const i = (str || "").indexOf("GK1.");
+    if (i < 0) return { ok: false, msg: "「GK1.」で始まる作品コードを貼り付けてください" };
+    const obj = JSON.parse(decodeURIComponent(escape(atob(str.slice(i + 4).replace(/\s+/g, "")))));
+    if (!obj || typeof state[obj.p] !== "object") return { ok: false, msg: "不明な作品タイプです" };
+    Object.assign(state[obj.p], obj.s || {});
+    state.preset = obj.p;
+    if (obj.c) state.color = obj.c;
+    state.author = obj.n || "";
+    document.getElementById("authorIn").value = state.author;
+    document.querySelectorAll(".tab").forEach(t => {
+      const on = t.dataset.preset === obj.p;
+      t.classList.toggle("on", on);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    renderControls();
+    rebuild();
+    return { ok: true, msg: (obj.n ? obj.n + " さんの作品を読み込みました ✓" : "作品を読み込みました ✓") };
+  } catch (e){
+    return { ok: false, msg: "読み込めませんでした（コードが欠けているかも）" };
+  }
+}
+const shareMsg = document.getElementById("shareMsg");
+function flashMsg(m, err){
+  shareMsg.textContent = m;
+  shareMsg.style.color = err ? "#d33" : "";
+  clearTimeout(flashMsg.t);
+  flashMsg.t = setTimeout(() => { shareMsg.textContent = ""; }, 7000);
+}
+function fallbackCopy(t, done){
+  const ta = document.createElement("textarea");
+  ta.value = t;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  ta.remove();
+  done();
+}
+document.getElementById("authorIn").addEventListener("input", e => { state.author = e.target.value; });
+document.getElementById("copyCode").addEventListener("click", () => {
+  const code = currentCode();
+  const done = () => flashMsg((state.author || "").trim()
+    ? "コピーしました ✓ そのまま提出フォームに貼り付けOK"
+    : "コピーしました ✓（なまえも入れておくと先生に伝わりやすいよ）");
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done));
+  } else fallbackCopy(code, done);
+});
+document.getElementById("loadBtn").addEventListener("click", () => {
+  const r = applyCode(document.getElementById("codeIn").value);
+  flashMsg(r.msg, !r.ok);
+  if (r.ok) document.getElementById("codeIn").value = "";
+});
+
+// ---------- 起動 ----------
+renderControls();
+rebuild();
+resize();
+animate();
+// URLの#にコードが付いていたら復元（リンク共有用）
+if (location.hash && location.hash.indexOf("GK1.") >= 0){
+  applyCode(decodeURIComponent(location.hash));
+}
+</script>
+</body>
+</html>
