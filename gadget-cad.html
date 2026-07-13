@@ -136,6 +136,10 @@ header input#docName{
   border:2px solid var(--line);border-radius:8px;background:#f6f9fc;font-size:10.5px;font-weight:800;padding:5px 0;
 }
 .alnGrid button:hover{border-color:var(--blue);color:var(--blue);}
+.alnGrid.dim{opacity:.35;pointer-events:none;}
+.hint{font-size:10.5px;color:var(--sub);line-height:1.7;margin-top:6px;}
+.hint b{color:var(--ink);}
+#noSel .go{color:var(--blue);font-weight:800;}
 #stlBtn{background:var(--orange);box-shadow:0 3px 0 var(--orange-dk);font-size:14px;padding:12px 0;}
 #stlBtn:active{transform:translateY(2px);box-shadow:none;}
 details.code{border:2px solid var(--line);border-radius:12px;padding:8px 9px;}
@@ -215,7 +219,7 @@ footer .sp{flex:1;}
   <div id="panel">
     <div class="sec" id="secSel">
       <div class="h">せんたく中</div>
-      <div id="noSel">なにも選ばれていません。<br><br>・クリックで選ぶ<br>・Shift＋クリックで追加選択<br>・空白ドラッグで視点回転<br>・ホイールでズーム<br>・Ctrl＋ドラッグで平行移動</div>
+      <div id="noSel">なにも選ばれていません。<br><br>・クリックで選ぶ<br>・<span class="go">Shift＋クリックで追加選択</span><br>・空白ドラッグで視点回転<br>・ホイールでズーム<br>・Ctrl＋ドラッグで平行移動<br><br>💡 <b>2つ以上えらぶ</b>と、そろえる・グループ化・くり抜き・合体ができるよ。</div>
       <div id="props" style="display:none;">
         <div class="dimRow" id="rowTxt" style="display:none;"><label>もじ</label><input type="text" id="pTxt" maxlength="24"></div>
         <div class="dimRow"><label id="labW">よこ W</label><input type="number" id="pW" min="1" step="1"><span class="u">mm</span></div>
@@ -233,11 +237,13 @@ footer .sp{flex:1;}
       </div>
       <div id="alnSec" style="display:none;">
         <div class="h" style="margin-top:4px;">そろえる（整列）</div>
-        <div class="alnGrid">
+        <div class="alnGrid" id="alnGrid">
           <button data-aln="x0">←左</button><button data-aln="x1">↔中央</button><button data-aln="x2">右→</button>
           <button data-aln="y0">↓手前</button><button data-aln="y1">↕中央</button><button data-aln="y2">奥↑</button>
           <button data-aln="z0">⬇下</button><button data-aln="z1">中</button><button data-aln="z2">上⬆</button>
         </div>
+        <div class="hint" id="alnHint">💡 <b>2つ以上えらぶ</b>と使えるよ（Shift＋クリック）。</div>
+        <div class="hint">🧩 重ねて<b>グループ化</b>＝合体（くっつく）／🕳 <b>穴にする</b>→重ねて<b>グループ化</b>＝くり抜き。</div>
       </div>
     </div>
 
@@ -1544,7 +1550,10 @@ function updatePanel(){
   const single = shapes.length===1 ? shapes[0] : null;
   $("noSel").style.display = shapes.length ? "none" : "block";
   $("props").style.display = single ? "block" : "none";
-  $("alnSec").style.display = shapes.length>=2 ? "block" : "none";
+  const multi = shapes.length>=2;
+  $("alnSec").style.display = shapes.length>=1 ? "block" : "none";
+  $("alnGrid").classList.toggle("dim", !multi);
+  $("alnHint").style.display = multi ? "none" : "block";
   $("grpBtn").disabled = shapes.length < 2;
   $("ungrpBtn").disabled = !(single && single.t==="grp");
   $("dupBtn").disabled = !shapes.length;
