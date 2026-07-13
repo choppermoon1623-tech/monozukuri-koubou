@@ -1082,9 +1082,9 @@ function updateHandleScale(){
   if (!handleGroup.visible) return;
   const d = camera.position.distanceTo(camCtl.target);
   const k = d * 0.011;
-  for (const h of cornerHandles) h.scale.setScalar(k*4.2);
-  heightHandle.scale.setScalar(k*4.2);
-  liftHandle.scale.setScalar(k*7);
+  for (const h of cornerHandles) h.scale.setScalar(k*2.6);
+  heightHandle.scale.setScalar(k*2.6);
+  liftHandle.scale.setScalar(k*4.2);
 }
 
 /* =========================================================
